@@ -1,0 +1,19 @@
+{
+  "session_id": "f0c7dd20-3f0e-469d-91ea-aaa6d3050b71",
+  "created_at": "2026-03-23T09:41:50.914673",
+  "client_profile": {
+    "name": "Test User",
+    "company": "ACME Corp",
+    "email": "test@acme.com",
+    "industry": "manufacturing",
+    "problem_raw": "need workflow automation",
+    "budget_signal": "medium budget"
+  },
+  "lead_temperature": "cold",
+  "conversation_stage": "GREETING",
+  "solutions_discussed": [],
+  "objections_raised": [],
+  "escalation_requested": false,
+  "updated_at": "2026-03-23T09:41:50.914689",
+  "lead_persisted": true
+}

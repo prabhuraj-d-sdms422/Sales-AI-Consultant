@@ -1,0 +1,74 @@
+from pathlib import Path
+from typing import ClassVar, Literal
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    # Load the root repo `.env` no matter where the server is started from.
+    repo_root: ClassVar[Path] = Path(__file__).resolve().parents[3]
+    model_config = SettingsConfigDict(
+        env_file=str(repo_root / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # App
+    app_env: str = "development"
+    app_host: str = "0.0.0.0"
+    app_port: int = 8000
+    app_debug: bool = True
+    cors_origins: str = "http://localhost:5173"
+
+    # LLM
+    llm_provider: Literal["anthropic", "openai", "gemini"] = "anthropic"
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-3-5-sonnet-20241022"
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-1.5-pro"
+    llm_temperature: float = 0.3
+    llm_max_tokens: int = 1000
+    llm_streaming: bool = True
+
+    # Vector DB (abstraction only — not called in V1)
+    vector_db_provider: Literal["pinecone", "pgvector"] = "pinecone"
+    pinecone_api_key: str = ""
+    pinecone_environment: str = ""
+    pinecone_index_name: str = "stark-ai-consultant"
+
+    # Redis
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_password: str = ""
+    redis_db: int = 0
+    redis_ttl_seconds: int = 86400
+
+    # Guardrails
+    intent_confidence_threshold: float = 0.70
+    stream_token_buffer: int = 20
+
+    # Identity
+    consultant_name: str = "Alex"
+    company_name: str = "Stark Digital"
+    sales_phone_number: str = ""
+    session_timeout_minutes: int = 30
+
+    # Output guardrail — competitor names (lowercase), comma-separated in env
+    competitor_names_blocklist: str = "tcs,infosys,wipro,accenture,cognizant"
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def split_cors(cls, v: str | list[str]) -> str:
+        if isinstance(v, list):
+            return ",".join(v)
+        return v
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+
+settings = Settings()

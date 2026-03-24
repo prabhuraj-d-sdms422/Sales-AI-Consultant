@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "validators": {
+    "guardrails/toxic_language": {
+      "import_path": "guardrails_grhub_toxic_language",
+      "exports": [
+        "ToxicLanguage"
+      ],
+      "installed_at": "2026-03-23T11:47:32.342494+00:00",
+      "package_name": "guardrails-grhub-toxic-language"
+    },
+    "guardrails/detect_jailbreak": {
+      "import_path": "guardrails_grhub_detect_jailbreak",
+      "exports": [
+        "DetectJailbreak"
+      ],
+      "installed_at": "2026-03-23T11:47:46.427835+00:00",
+      "package_name": "guardrails-grhub-detect-jailbreak"
+    },
+    "guardrails/competitor_check": {
+      "import_path": "guardrails_grhub_competitor_check",
+      "exports": [
+        "CompetitorCheck"
+      ],
+      "installed_at": "2026-03-23T11:52:29.015345+00:00",
+      "package_name": "guardrails-grhub-competitor-check"
+    }
+  }
+}

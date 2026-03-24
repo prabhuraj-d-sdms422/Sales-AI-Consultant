@@ -1,0 +1,58 @@
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+from app.config.llm_provider import get_llm
+from app.config.settings import settings
+from app.models.state import ConversationState
+from app.prompts.discovery_prompt import get_tone_calibration
+from app.prompts.objection_handler_prompt import OBJECTION_HANDLER_PROMPT
+from app.prompts.solution_advisor_prompt import _format_profile
+from app.services.lead_service import persist_lead_incrementally
+
+
+def _content(msg) -> str:
+    c = getattr(msg, "content", msg)
+    if isinstance(c, list):
+        return "".join(str(x) for x in c)
+    return str(c)
+
+
+def _build_messages(state: ConversationState, system_prompt: str) -> list:
+    messages = [SystemMessage(content=system_prompt)]
+    for msg in (state.get("messages") or [])[-8:]:
+        t = getattr(msg, "type", None)
+        if t == "human":
+            messages.append(HumanMessage(content=_content(msg)))
+        elif t in ("ai", "assistant"):
+            messages.append(AIMessage(content=_content(msg)))
+    return messages
+
+
+async def objection_handler_node(state: ConversationState) -> dict:
+    profile = dict(state.get("client_profile") or {})
+    objections_raised = list(state.get("objections_raised") or [])
+    msgs = state.get("messages") or []
+    last_message = _content(msgs[-1]) if msgs else ""
+    tone_block = get_tone_calibration(profile)
+    system_prompt = OBJECTION_HANDLER_PROMPT.format(
+        company_name=settings.company_name,
+        client_profile=_format_profile(profile),
+        objections_raised=", ".join(objections_raised) or "none yet",
+        current_objection=last_message,
+        tone_calibration=tone_block,
+    )
+    messages = _build_messages(state, system_prompt)
+    llm = get_llm(streaming=False, temperature=0.2)
+    response = await llm.ainvoke(messages)
+    response_text = response.content or ""
+    if isinstance(response_text, list):
+        response_text = "".join(str(x) for x in response_text)
+
+    updated_objections = objections_raised + [last_message[:80]]
+    await persist_lead_incrementally(state["session_id"], profile, state)
+    return {
+        "current_response": response_text,
+        "objections_raised": updated_objections,
+        "current_agent": "objection_handler",
+        "conversation_stage": "OBJECTION",
+        "should_stream": True,
+    }

@@ -1,0 +1,20 @@
+{
+  "session_id": "test-delivery-001",
+  "saved_at": "2026-03-23T09:42:03.315279",
+  "lead_temperature": "hot",
+  "conversation_stage": "CONVERSION",
+  "client_profile": {
+    "name": "Ravi Kumar",
+    "company": "TechStartup Pvt Ltd",
+    "email": "ravi@techstartup.in",
+    "industry": "fintech",
+    "problem_raw": "need AI automation",
+    "budget_signal": "good budget"
+  },
+  "solutions_discussed": [
+    "AI automation",
+    "CRM"
+  ],
+  "objections_raised": [],
+  "escalation_requested": true
+}

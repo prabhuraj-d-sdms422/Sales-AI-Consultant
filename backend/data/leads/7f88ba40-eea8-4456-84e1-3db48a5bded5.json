@@ -1,0 +1,20 @@
+{
+  "session_id": "7f88ba40-eea8-4456-84e1-3db48a5bded5",
+  "created_at": "2026-03-23T12:55:07.511189",
+  "client_profile": {
+    "company": "mid-sized logistics company",
+    "industry": "logistics",
+    "problem_raw": "9 people involved in manual document handling (invoices, GRNs, delivery docs), spending 4-5 hours per person each week on searching, re-entering data, and routing files.",
+    "scale": "9 people, 4-5 hours/week per person",
+    "technical_level": "non-technical"
+  },
+  "lead_temperature": "warm",
+  "conversation_stage": "PROPOSAL",
+  "solutions_discussed": [
+    "That's an excellent question, and it gets to the h"
+  ],
+  "objections_raised": [],
+  "escalation_requested": false,
+  "updated_at": "2026-03-23T13:32:47.714339",
+  "lead_persisted": true
+}

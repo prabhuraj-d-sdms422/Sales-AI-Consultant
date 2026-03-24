@@ -1,0 +1,12 @@
+{
+  "session_id": "23021653-990d-40da-9676-0d4cf11493fa",
+  "created_at": "2026-03-23T07:55:11.868528",
+  "client_profile": {},
+  "lead_temperature": "cold",
+  "conversation_stage": "GREETING",
+  "solutions_discussed": [],
+  "objections_raised": [],
+  "escalation_requested": false,
+  "updated_at": "2026-03-23T07:55:11.868560",
+  "lead_persisted": true
+}
