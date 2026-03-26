@@ -11,6 +11,8 @@ dist/
 data/leads/
 data/guardrail_log.jsonl
 data/leads.xlsx
+backend/data/leads/
+backend/data/leads.xlsx
 venv/
 .venv/
 frontend/node_modules/

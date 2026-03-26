@@ -12,6 +12,8 @@ services:
     env_file: .env
     environment:
       REDIS_HOST: redis
+      # Backend runs inside Docker, so it must talk to the container's internal port.
+      REDIS_PORT: 6379
     depends_on:
       - redis
     volumes:
