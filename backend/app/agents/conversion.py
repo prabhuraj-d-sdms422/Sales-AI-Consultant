@@ -38,10 +38,30 @@ async def _trigger_lead_delivery(state: ConversationState) -> None:
         logging.error("Lead delivery failed for session %s: %s", state.get("session_id"), e)
 
 
+def _has_contact_info(profile: dict) -> bool:
+    """Returns True when we have at least a name and one way to reach the client."""
+    has_name = bool(profile.get("name"))
+    has_contact = bool(profile.get("email") or profile.get("phone"))
+    return has_name and has_contact
+
+
 async def conversion_node(state: ConversationState) -> dict:
     intent = str(state.get("current_intent", ""))
     profile = dict(state.get("client_profile") or {})
     is_escalation = intent == "ESCALATION_REQUEST" or bool(state.get("escalation_requested"))
+
+    # Trigger lead delivery when:
+    # 1. Client explicitly asked for a human (escalation)
+    # 2. Client shared their contact info (LEAD_INFO_SHARED)
+    # 3. Client is a hot lead who confirmed interest (BUYING_SIGNAL) and we have contact info
+    is_lead_info_shared = intent == "LEAD_INFO_SHARED"
+    is_hot_with_contact = (
+        intent in ("BUYING_SIGNAL", "LEAD_INFO_SHARED")
+        and _has_contact_info(profile)
+    )
+    should_deliver_lead = is_escalation or is_lead_info_shared or is_hot_with_contact or bool(
+        state.get("escalation_triggered")
+    )
 
     if is_escalation:
         system_prompt = ESCALATION_PROMPT.format(
@@ -79,7 +99,14 @@ async def conversion_node(state: ConversationState) -> dict:
         "current_response": response_text,
         "current_agent": "conversion",
     }
-    if is_escalation or bool(state.get("escalation_triggered")):
+    if should_deliver_lead:
+        logging.info(
+            "LEAD DELIVERY triggered | session=%s | intent=%s | stage=%s | has_contact=%s",
+            state.get("session_id"),
+            intent,
+            merged_for_delivery.get("conversation_stage"),
+            _has_contact_info(profile),
+        )
         await _trigger_lead_delivery(merged_for_delivery)  # type: ignore[arg-type]
 
     return {

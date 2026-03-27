@@ -4,7 +4,8 @@ from enum import Enum
 class IntentClass(str, Enum):
     GREETING = "GREETING"
     DISCOVERY_RESPONSE = "DISCOVERY_RESPONSE"
-    SOLUTION_REQUEST = "SOLUTION_REQUEST"
+    PROBLEM_STATED = "PROBLEM_STATED"        # Client has clearly described what they need/want to build
+    SOLUTION_REQUEST = "SOLUTION_REQUEST"    # Client explicitly asks what solutions exist
     PRICING_INQUIRY = "PRICING_INQUIRY"
     OBJECTION = "OBJECTION"
     ESCALATION_REQUEST = "ESCALATION_REQUEST"

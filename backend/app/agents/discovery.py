@@ -4,28 +4,12 @@ from app.config.llm_provider import get_llm
 from app.config.settings import settings
 from app.models.state import ConversationState
 from app.prompts.discovery_prompt import (
-    DISCOVERY_CONVERSATIONAL_PROMPT,
-    DISCOVERY_STRUCTURED_PROMPT,
+    DISCOVERY_SMART_PROMPT,
+    get_conversation_context,
+    get_priority_question_hint,
     get_tone_calibration,
 )
 from app.services.lead_service import persist_lead_incrementally
-
-
-def _get_missing_fields(profile: dict) -> list[str]:
-    priority_order = [
-        "industry",
-        "problem_raw",
-        "scale",
-        "budget_signal",
-        "decision_maker",
-        "urgency",
-    ]
-    return [f for f in priority_order if not profile.get(f)]
-
-
-def _format_profile(profile: dict) -> str:
-    filled = {k: v for k, v in profile.items() if v}
-    return "\n".join(f"- {k}: {v}" for k, v in filled.items()) if filled else "No information collected yet"
 
 
 def _build_messages(state: ConversationState, system_prompt: str) -> list:
@@ -47,25 +31,18 @@ def _content(msg) -> str:
 
 
 async def discovery_node(state: ConversationState) -> dict:
-    mode = state.get("agent_mode", "CONVERSATIONAL")
     profile = dict(state.get("client_profile") or {})
     tone_block = get_tone_calibration(profile)
-    if mode == "CONVERSATIONAL":
-        system_prompt = DISCOVERY_CONVERSATIONAL_PROMPT.format(
-            tone_calibration=tone_block,
-            consultant_name=settings.consultant_name,
-            company_name=settings.company_name,
-        )
-    else:
-        missing_fields = _get_missing_fields(profile)
-        system_prompt = DISCOVERY_STRUCTURED_PROMPT.format(
-            tone_calibration=tone_block,
-            consultant_name=settings.consultant_name,
-            company_name=settings.company_name,
-            client_profile=_format_profile(profile),
-            missing_fields=", ".join(missing_fields),
-            priority_field=missing_fields[0] if missing_fields else "problem_understood",
-        )
+    conversation_ctx = get_conversation_context(profile)
+    priority_hint = get_priority_question_hint(profile)
+
+    system_prompt = DISCOVERY_SMART_PROMPT.format(
+        consultant_name=settings.consultant_name,
+        company_name=settings.company_name,
+        conversation_context=conversation_ctx,
+        tone_calibration=tone_block,
+        priority_question_hint=priority_hint,
+    )
 
     messages = _build_messages(state, system_prompt)
     llm = get_llm(streaming=False)

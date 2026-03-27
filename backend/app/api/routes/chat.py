@@ -9,6 +9,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from app.config.settings import settings
 from app.graph.graph import conversation_graph
 from app.models.schemas import ChatRequest
+from app.services.conversation_archive_service import save_session_conversation
 from app.services.session_service import load_state, save_state
 
 router = APIRouter(tags=["chat"])
@@ -20,6 +21,12 @@ async def send_message(request: ChatRequest):
     state = await load_state(request.session_id)
     if not state:
         raise HTTPException(status_code=404, detail="Session not found")
+    logger.info(
+        "CHAT | session=%s | stage=%s | msg_preview=%.60r",
+        request.session_id,
+        state.get("conversation_stage", "?"),
+        request.message,
+    )
 
     msgs = list(state.get("messages") or [])
     msgs.append(HumanMessage(content=request.message))
@@ -82,6 +89,11 @@ async def _stream_chat(state: dict):
             msgs.append(AIMessage(content=client_response_text))
             accumulated["messages"] = msgs
         await save_state(state["session_id"], accumulated)
+        if settings.save_conversations_enabled:
+            await save_session_conversation(
+                session_id=state["session_id"],
+                messages=list(accumulated.get("messages") or []),
+            )
         yield f"data: {json.dumps({'type': 'done', 'session_id': state['session_id']})}\n\n"
     except Exception:
         # Log the real exception so we can debug why the model/graph failed.

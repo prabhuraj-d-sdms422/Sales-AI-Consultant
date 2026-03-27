@@ -1,11 +1,24 @@
+import logging
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.config.llm_provider import get_llm
 from app.config.settings import settings
 from app.models.state import ConversationState
 from app.prompts.discovery_prompt import get_tone_calibration
-from app.prompts.solution_advisor_prompt import SOLUTION_ADVISOR_PROMPT, _format_profile
+from app.prompts.solution_advisor_prompt import (
+    SOLUTION_ADVISOR_PROMPT,
+    SOLUTION_ADVISOR_RAG_PROMPT,
+    _format_profile,
+)
 from app.services.lead_service import persist_lead_incrementally
+from app.services.rag_service import (
+    NAMESPACE_HEALTHCARE,
+    get_industry_context,
+    is_healthcare_context,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _content(msg) -> str:
@@ -26,19 +39,79 @@ def _build_messages(state: ConversationState, system_prompt: str) -> list:
     return messages
 
 
+def _build_query_text(profile: dict) -> str:
+    """
+    Compose the semantic query from what we know about the client's problem.
+    More context → better match quality from Pinecone.
+    """
+    parts: list[str] = []
+    if profile.get("problem_understood"):
+        parts.append(profile["problem_understood"])
+    if profile.get("problem_raw"):
+        parts.append(profile["problem_raw"])
+    if profile.get("industry"):
+        parts.append(f"Industry: {profile['industry']}")
+    if profile.get("existing_products"):
+        parts.append(profile["existing_products"])
+    return " ".join(parts)
+
+
 async def solution_advisor_node(state: ConversationState) -> dict:
-    profile = dict(state.get("client_profile") or {})
+    profile           = dict(state.get("client_profile") or {})
     solutions_discussed = list(state.get("solutions_discussed") or [])
-    tone_block = get_tone_calibration(profile)
-    system_prompt = SOLUTION_ADVISOR_PROMPT.format(
-        tone_calibration=tone_block,
-        client_profile=_format_profile(profile),
-        solutions_already_discussed=", ".join(solutions_discussed) or "none yet",
-        company_name=settings.company_name,
-    )
-    messages = _build_messages(state, system_prompt)
-    llm = get_llm(streaming=False)
-    response = await llm.ainvoke(messages)
+    tone_block        = get_tone_calibration(profile)
+
+    # ── RAG context lookup ─────────────────────────────────────────────────────
+    rag_context: str | None = None
+    query_text = _build_query_text(profile)
+
+    if query_text and is_healthcare_context(
+        industry=profile.get("industry", ""),
+        problem_text=query_text,
+    ):
+        logger.info(
+            "RAG: healthcare domain detected for session %s — querying Pinecone.",
+            state.get("session_id"),
+        )
+        rag_context = await get_industry_context(
+            query_text=query_text,
+            namespace=NAMESPACE_HEALTHCARE,
+            top_k=settings.rag_top_k,
+            threshold=settings.rag_similarity_threshold,
+        )
+        if rag_context:
+            logger.info(
+                "RAG: context injected for session %s.", state.get("session_id")
+            )
+        else:
+            logger.debug(
+                "RAG: no relevant healthcare matches found for session %s — "
+                "falling back to LLM general knowledge.",
+                state.get("session_id"),
+            )
+
+    # ── Build system prompt ────────────────────────────────────────────────────
+    if rag_context:
+        system_prompt = SOLUTION_ADVISOR_RAG_PROMPT.format(
+            tone_calibration=tone_block,
+            client_profile=_format_profile(profile),
+            solutions_already_discussed=", ".join(solutions_discussed) or "none yet",
+            consultant_name=settings.consultant_name,
+            company_name=settings.company_name,
+            rag_context=rag_context,
+        )
+    else:
+        system_prompt = SOLUTION_ADVISOR_PROMPT.format(
+            tone_calibration=tone_block,
+            client_profile=_format_profile(profile),
+            solutions_already_discussed=", ".join(solutions_discussed) or "none yet",
+            consultant_name=settings.consultant_name,
+            company_name=settings.company_name,
+        )
+
+    messages     = _build_messages(state, system_prompt)
+    llm          = get_llm(streaming=False)
+    response     = await llm.ainvoke(messages)
     response_text = response.content or ""
     if isinstance(response_text, list):
         response_text = "".join(str(x) for x in response_text)
@@ -46,9 +119,9 @@ async def solution_advisor_node(state: ConversationState) -> dict:
     updated_solutions = solutions_discussed + [response_text[:50]]
     await persist_lead_incrementally(state["session_id"], profile, state)
     return {
-        "current_response": response_text,
+        "current_response":    response_text,
         "solutions_discussed": updated_solutions,
-        "current_agent": "solution_advisor",
-        "conversation_stage": "PROPOSAL",
-        "should_stream": True,
+        "current_agent":       "solution_advisor",
+        "conversation_stage":  "PROPOSAL",
+        "should_stream":       True,
     }

@@ -13,6 +13,8 @@ data/guardrail_log.jsonl
 data/leads.xlsx
 backend/data/leads/
 backend/data/leads.xlsx
+backend/data/Conversations/
+Pinecone_DB/
 venv/
 .venv/
 frontend/node_modules/

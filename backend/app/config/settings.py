@@ -55,9 +55,16 @@ class Settings(BaseSettings):
     company_name: str = "Stark Digital"
     sales_phone_number: str = ""
     session_timeout_minutes: int = 30
+    save_conversations_enabled: bool = False
 
     # Output guardrail — competitor names (lowercase), comma-separated in env
     competitor_names_blocklist: str = "tcs,infosys,wipro,accenture,cognizant"
+
+    # RAG — Pinecone similarity search
+    # all-MiniLM-L6-v2 cosine scores range 0.5-0.75 even for strong matches.
+    # 0.55 filters irrelevant results while capturing spot-on domain matches.
+    rag_similarity_threshold: float = 0.55
+    rag_top_k: int = 3
 
     @field_validator("cors_origins", mode="before")
     @classmethod
