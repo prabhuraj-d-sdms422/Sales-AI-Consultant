@@ -14,8 +14,10 @@ from app.prompts.solution_advisor_prompt import (
 from app.services.lead_service import persist_lead_incrementally
 from app.services.rag_service import (
     NAMESPACE_HEALTHCARE,
+    NAMESPACE_INSURANCE,
     get_industry_context,
     is_healthcare_context,
+    is_insurance_context,
 )
 from app.services.token_cost_service import (
     add_usage_totals,
@@ -70,30 +72,36 @@ async def solution_advisor_node(state: ConversationState) -> dict:
     rag_context: str | None = None
     query_text = _build_query_text(profile)
 
-    if query_text and is_healthcare_context(
-        industry=profile.get("industry", ""),
-        problem_text=query_text,
-    ):
-        logger.info(
-            "RAG: healthcare domain detected for session %s — querying Pinecone.",
-            state.get("session_id"),
-        )
-        rag_context = await get_industry_context(
-            query_text=query_text,
-            namespace=NAMESPACE_HEALTHCARE,
-            top_k=settings.rag_top_k,
-            threshold=settings.rag_similarity_threshold,
-        )
-        if rag_context:
+    if query_text:
+        industry = profile.get("industry", "")
+        # Prefer the most specific industry namespace first.
+        namespace = None
+        if is_insurance_context(industry=industry, problem_text=query_text):
+            namespace = NAMESPACE_INSURANCE
+        elif is_healthcare_context(industry=industry, problem_text=query_text):
+            namespace = NAMESPACE_HEALTHCARE
+
+        if namespace:
             logger.info(
-                "RAG: context injected for session %s.", state.get("session_id")
-            )
-        else:
-            logger.debug(
-                "RAG: no relevant healthcare matches found for session %s — "
-                "falling back to LLM general knowledge.",
+                "RAG: domain detected (%s) for session %s — querying Pinecone.",
+                namespace,
                 state.get("session_id"),
             )
+            rag_context = await get_industry_context(
+                query_text=query_text,
+                namespace=namespace,
+                top_k=settings.rag_top_k,
+                threshold=settings.rag_similarity_threshold,
+            )
+            if rag_context:
+                logger.info("RAG: context injected for session %s.", state.get("session_id"))
+            else:
+                logger.debug(
+                    "RAG: no relevant matches found for session %s in namespace %s — "
+                    "falling back to LLM general knowledge.",
+                    state.get("session_id"),
+                    namespace,
+                )
 
     # ── Build system prompt ────────────────────────────────────────────────────
     if rag_context:
