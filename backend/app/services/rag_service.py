@@ -22,8 +22,9 @@ from app.config.settings import settings
 logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-_EMBED_MODEL_NAME    = "all-MiniLM-L6-v2"   # 384-dim, free, local, CPU
+_EMBED_MODEL_NAME = "all-MiniLM-L6-v2"  # 384-dim, free, local, CPU
 NAMESPACE_HEALTHCARE = "healthcare"
+NAMESPACE_INSURANCE = "insurance"
 
 # Vocabulary that reliably signals a healthcare-domain conversation.
 # Even one match in the problem text qualifies — these are all domain-specific.
@@ -41,6 +42,49 @@ _HEALTHCARE_SIGNALS: frozenset[str] = frozenset({
     "patient data", "medical records", "clinical workflow", "revenue cycle",
 })
 
+_INSURANCE_SIGNALS: frozenset[str] = frozenset(
+    {
+        "insurance",
+        "insurer",
+        "insurers",
+        "policy",
+        "policyholder",
+        "policyholders",
+        "premium",
+        "renewal",
+        "claim",
+        "claims",
+        "fnol",
+        "first notice of loss",
+        "tpa",
+        "underwriting",
+        "uw",
+        "fraud",
+        "siu",
+        "survey",
+        "surveyor",
+        "guidewire",
+        "duck creek",
+        "claims management system",
+        "cms",
+        "motor claim",
+        "health claim",
+        "cashless",
+        "settlement",
+        "endorsement",
+        "k yc",
+        "kyc",
+        "risk scoring",
+        "rate card",
+        "irda",
+        "irdai",
+        "insurtech",
+        "broker",
+        "agent",
+        "channel partner",
+        "proposal form",
+    }
+)
 
 # ── Singletons ────────────────────────────────────────────────────────────────
 
@@ -96,6 +140,10 @@ def is_healthcare_context(industry: str, problem_text: str) -> bool:
     return any(sig in combined for sig in _HEALTHCARE_SIGNALS)
 
 
+def is_insurance_context(industry: str, problem_text: str) -> bool:
+    combined = f"{industry or ''} {problem_text or ''}".lower()
+    return any(sig in combined for sig in _INSURANCE_SIGNALS)
+
 # ── Formatting helpers ────────────────────────────────────────────────────────
 
 def _format_match(match: dict, rank: int) -> str:
@@ -126,11 +174,19 @@ def _format_match(match: dict, rank: int) -> str:
     return "\n".join(lines)
 
 
+def _namespace_label(namespace: str) -> str:
+    if namespace == NAMESPACE_HEALTHCARE:
+        return "HEALTHCARE"
+    if namespace == NAMESPACE_INSURANCE:
+        return "INSURANCE"
+    return namespace.upper()
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 async def get_industry_context(
     query_text: str,
-    namespace: str = NAMESPACE_HEALTHCARE,
+    namespace: str,
     top_k: int = 3,
     threshold: float = 0.70,
 ) -> Optional[str]:
@@ -192,10 +248,11 @@ async def get_industry_context(
         if not ordered:
             return None
 
+        label = _namespace_label(namespace)
         header = (
-            "## STARK DIGITAL HEALTHCARE KNOWLEDGE BASE\n"
+            f"## STARK DIGITAL {label} KNOWLEDGE BASE\n"
             "The following are verified, deliverable solutions from Stark Digital's "
-            "healthcare portfolio. Use these as your primary reference when recommending "
+            f"{label.lower()} portfolio. Use these as your primary reference when recommending "
             "solutions to this client. Present in the client's language and tone.\n"
             "Do NOT copy verbatim — synthesise and personalise based on their specific problem.\n"
         )
