@@ -24,6 +24,11 @@ from app.services.token_cost_service import (
     extract_token_usage_from_message,
     get_active_provider_and_model,
 )
+from app.services.token_cost_service import (
+    add_usage_totals,
+    extract_token_usage_from_message,
+    get_active_provider_and_model,
+)
 
 logger = logging.getLogger(__name__)
 
