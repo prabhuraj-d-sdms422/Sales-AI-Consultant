@@ -26,17 +26,24 @@ def _to_message_record(message: Any) -> dict:
     return {"type": "unknown", "content": str(message), "raw": {"value": str(message)}}
 
 
-async def save_session_conversation(session_id: str, messages: list[Any]) -> None:
+async def save_session_conversation(
+    session_id: str,
+    messages: list[Any],
+    *,
+    token_usage: dict | None = None,
+) -> None:
     root_path = Path(settings.repo_root)
     conversations_dir = root_path / "backend" / "data" / "Conversations"
     conversations_dir.mkdir(parents=True, exist_ok=True)
 
-    payload = {
+    payload: dict = {
         "session_id": session_id,
         "updated_at": datetime.utcnow().isoformat(),
         "message_count": len(messages),
         "messages": [_to_message_record(m) for m in messages],
     }
+    if token_usage:
+        payload["token_usage"] = token_usage
 
     target_file = conversations_dir / f"{session_id}.json"
     target_file.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")

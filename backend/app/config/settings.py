@@ -28,10 +28,14 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o"
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-1.5-pro"
+    gemini_model: str = "gemini-2.5-flash"
     llm_temperature: float = 0.3
     llm_max_tokens: int = 1000
     llm_streaming: bool = True
+
+    # Pricing / cost estimation
+    # NOTE: Token counts come from provider usage metadata (real). Only USD->INR conversion depends on this rate.
+    usd_to_inr_rate: float = 83.5
 
     # Vector DB (abstraction only — not called in V1)
     vector_db_provider: Literal["pinecone", "pgvector"] = "pinecone"

@@ -5,6 +5,7 @@ export function useChat(sessionId) {
   const [messages, setMessages] = useState([]);
   const [streamingText, setStreamingText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [tokenUsage, setTokenUsage] = useState(null);
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
 
@@ -48,6 +49,9 @@ export function useChat(sessionId) {
               assistant += payload.token;
               setStreamingText(assistant);
             }
+            if (payload.type === "usage") {
+              setTokenUsage(payload);
+            }
             if (payload.type === "error") {
               throw new Error(payload.message || "Stream error");
             }
@@ -66,5 +70,5 @@ export function useChat(sessionId) {
     [sessionId],
   );
 
-  return { messages, streamingText, isTyping, error, sendMessage };
+  return { messages, streamingText, isTyping, tokenUsage, error, sendMessage };
 }

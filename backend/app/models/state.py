@@ -42,3 +42,8 @@ class ConversationState(TypedDict):
     escalation_triggered: bool
     should_stream: bool
     conversation_ended: bool
+
+    # Token usage + costing (per session)
+    # Stored in Redis and optionally archived to backend/data/Conversations/*.json
+    session_token_usage: dict
+    last_call_token_usage: dict

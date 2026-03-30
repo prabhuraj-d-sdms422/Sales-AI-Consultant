@@ -93,7 +93,37 @@ async def _stream_chat(state: dict):
             await save_session_conversation(
                 session_id=state["session_id"],
                 messages=list(accumulated.get("messages") or []),
+                token_usage=accumulated.get("session_token_usage") or None,
             )
+        # Emit latest usage totals for live UI display.
+        session_usage = accumulated.get("session_token_usage") or {}
+        last_usage = accumulated.get("last_call_token_usage") or {}
+        yield (
+            "data: "
+            + json.dumps(
+                {
+                    "type": "usage",
+                    "provider": session_usage.get("provider") or last_usage.get("provider"),
+                    "model": session_usage.get("model") or last_usage.get("model"),
+                    "this_call": {
+                        "input_tokens": int(last_usage.get("input_tokens") or 0),
+                        "output_tokens": int(last_usage.get("output_tokens") or 0),
+                        "total_tokens": int(last_usage.get("total_tokens") or 0),
+                        "estimated_cost_usd": float(last_usage.get("estimated_cost_usd") or 0.0),
+                        "estimated_cost_inr": float(last_usage.get("estimated_cost_inr") or 0.0),
+                    },
+                    "session": {
+                        "total_input_tokens": int(session_usage.get("total_input_tokens") or 0),
+                        "total_output_tokens": int(session_usage.get("total_output_tokens") or 0),
+                        "total_tokens": int(session_usage.get("total_tokens") or 0),
+                        "estimated_cost_usd": float(session_usage.get("estimated_cost_usd") or 0.0),
+                        "estimated_cost_inr": float(session_usage.get("estimated_cost_inr") or 0.0),
+                        "usd_to_inr_rate": float(session_usage.get("usd_to_inr_rate") or 0.0),
+                    },
+                }
+            )
+            + "\n\n"
+        )
         yield f"data: {json.dumps({'type': 'done', 'session_id': state['session_id']})}\n\n"
     except Exception:
         # Log the real exception so we can debug why the model/graph failed.
