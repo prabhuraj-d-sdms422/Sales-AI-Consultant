@@ -19,5 +19,4 @@ venv/
 .venv/
 frontend/node_modules/
 frontend/dist/
-credentials/
-backend/credentials/
+credentials/google_sheets_credentials.json
