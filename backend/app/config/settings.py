@@ -54,6 +54,13 @@ class Settings(BaseSettings):
     intent_confidence_threshold: float = 0.70
     stream_token_buffer: int = 20
 
+    # Google Sheets — lead tracker (Phase 2 style, safe optional)
+    # If disabled or missing config, the app will keep writing local Excel only.
+    google_sheets_enabled: bool = False
+    google_sheets_credentials_file: str = "credentials/google_sheets_credentials.json"
+    google_sheets_spreadsheet_id: str = ""
+    google_sheets_worksheet_name: str = "Leads"
+
     # SendGrid — lead notifications (after JSON + Excel save). Leave API key empty to disable.
     sendgrid_api_key: str = ""
     sendgrid_from_email: str = ""

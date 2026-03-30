@@ -123,6 +123,43 @@ If you use a **local** `redis-server` on the default port instead, use `REDIS_PO
 
 **`Connection refused` / `Error 111 connecting to localhost:6380` (or another port):** either Redis is not running, or `REDIS_PORT` does not match where Redis listens. Start Redis (`docker compose up -d redis` or your OS service), then align `.env`. Verify with `redis-cli -p 6381 ping` (or your chosen port) — expect `PONG`.
 
+### 6.1 Google Sheets (optional lead tracker)
+
+By default we write captured leads to **local Excel** (`backend/data/leads.xlsx`). If you want a live, shareable tracker, you can also append the same lead row to a **Google Sheet**.
+
+#### A. Google Cloud setup
+
+- Create / pick a Google Cloud project
+- Enable **Google Sheets API**
+- Create a **Service Account** and download its JSON key file
+- Create a Google Sheet (or choose one) and copy its **Spreadsheet ID** from the URL
+- Share the sheet with the service account’s `client_email` (from the JSON) as **Editor**
+
+#### B. Put credentials in the repo (never commit)
+
+Place the JSON at (default):
+
+- `credentials/google_sheets_credentials.json`
+
+This folder is ignored by git via `.gitignore`.
+
+#### C. Configure `.env`
+
+```env
+GOOGLE_SHEETS_ENABLED=true
+GOOGLE_SHEETS_CREDENTIALS_FILE=credentials/google_sheets_credentials.json
+GOOGLE_SHEETS_SPREADSHEET_ID=your_spreadsheet_id_here
+GOOGLE_SHEETS_WORKSHEET_NAME=Leads
+```
+
+#### D. What happens at runtime
+
+When a lead is captured, the backend will:
+
+- save JSON in `backend/data/leads/{session_id}.json`
+- append a row in `backend/data/leads.xlsx`
+- **append the same row to Google Sheets** (best-effort; failures are logged, local files are still saved)
+
 ### 7. Run the backend
 
 From `backend/` with `PYTHONPATH` set so `app` resolves:

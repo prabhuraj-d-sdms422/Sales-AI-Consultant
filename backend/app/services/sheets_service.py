@@ -1,10 +1,17 @@
-"""V1: Appends lead row to local Excel. Phase 2: Replace with Google Sheets API."""
+"""Lead tracker.
 
+V1 default: append to local Excel (data/leads.xlsx).
+Optional: append the same row to Google Sheets when configured.
+"""
+
+import asyncio
 import os
 from datetime import datetime
+from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
 
+from app.config.settings import settings
 from app.models.state import ConversationState
 
 EXCEL_PATH = "data/leads.xlsx"
@@ -27,26 +34,31 @@ HEADERS = [
 ]
 
 
-async def append_lead_locally(state: ConversationState) -> None:
-    os.makedirs("data", exist_ok=True)
-    profile = state.get("client_profile", {})
-    row = [
+def _build_row(state: ConversationState) -> list[str]:
+    profile = state.get("client_profile", {}) or {}
+    return [
         datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         str(state.get("lead_temperature", "cold")).upper(),
-        profile.get("name", ""),
-        profile.get("company", ""),
-        profile.get("email", ""),
-        profile.get("phone", ""),
-        profile.get("industry", ""),
-        profile.get("problem_understood") or profile.get("problem_raw", ""),
-        profile.get("budget_signal", ""),
-        profile.get("urgency", ""),
+        str(profile.get("name", "") or ""),
+        str(profile.get("company", "") or ""),
+        str(profile.get("email", "") or ""),
+        str(profile.get("phone", "") or ""),
+        str(profile.get("industry", "") or ""),
+        str(profile.get("problem_understood") or profile.get("problem_raw", "") or ""),
+        str(profile.get("budget_signal", "") or ""),
+        str(profile.get("urgency", "") or ""),
         str(profile.get("decision_maker", "")),
         ", ".join(state.get("solutions_discussed", []) or []),
         ", ".join(state.get("objections_raised", []) or []),
-        state.get("conversation_stage", ""),
-        state.get("session_id", ""),
+        str(state.get("conversation_stage", "") or ""),
+        str(state.get("session_id", "") or ""),
     ]
+
+
+async def append_lead_locally(state: ConversationState) -> None:
+    """Append a lead row to local Excel (always-on)."""
+    os.makedirs("data", exist_ok=True)
+    row = _build_row(state)
     if os.path.exists(EXCEL_PATH):
         wb = load_workbook(EXCEL_PATH)
         ws = wb.active
@@ -56,3 +68,72 @@ async def append_lead_locally(state: ConversationState) -> None:
         ws.append(HEADERS)
     ws.append(row)
     wb.save(EXCEL_PATH)
+
+
+def _append_google_sheet_sync(row: list[str]) -> None:
+    """Sync append into Google Sheets. Intended to run in a thread."""
+    from google.oauth2 import service_account  # noqa: PLC0415
+    from googleapiclient.discovery import build  # noqa: PLC0415
+
+    if not settings.google_sheets_spreadsheet_id.strip():
+        return
+
+    creds_path = settings.google_sheets_credentials_file.strip()
+    if not creds_path:
+        return
+    # Resolve relative paths from repo root so running uvicorn from backend/ works.
+    p = Path(creds_path)
+    if not p.is_absolute():
+        p = Path(settings.repo_root) / creds_path
+
+    creds = service_account.Credentials.from_service_account_file(
+        str(p),
+        scopes=["https://www.googleapis.com/auth/spreadsheets"],
+    )
+    service = build("sheets", "v4", credentials=creds, cache_discovery=False)
+
+    sheet = settings.google_sheets_worksheet_name or "Leads"
+    range_a1 = f"{sheet}!A:Z"
+
+    # Prevent Google Sheets from trying to parse values (e.g. "+91..." as a formula).
+    safe_row = list(row)
+    if len(safe_row) > 5 and isinstance(safe_row[5], str) and safe_row[5].lstrip().startswith("+"):
+        safe_row[5] = "'" + safe_row[5].lstrip()
+
+    # Ensure headers exist if the sheet is empty.
+    header_range = f"{sheet}!A1:Z1"
+    existing = (
+        service.spreadsheets()
+        .values()
+        .get(spreadsheetId=settings.google_sheets_spreadsheet_id, range=header_range)
+        .execute()
+        .get("values", [])
+    )
+    if not existing:
+        service.spreadsheets().values().update(
+            spreadsheetId=settings.google_sheets_spreadsheet_id,
+            range=f"{sheet}!A1",
+            valueInputOption="RAW",
+            body={"values": [HEADERS]},
+        ).execute()
+
+    service.spreadsheets().values().append(
+        spreadsheetId=settings.google_sheets_spreadsheet_id,
+        range=range_a1,
+        valueInputOption="RAW",
+        insertDataOption="INSERT_ROWS",
+        body={"values": [safe_row]},
+    ).execute()
+
+
+async def append_lead_google_sheets(state: ConversationState) -> None:
+    """Append a lead row to Google Sheets when configured; no-op otherwise."""
+    if not settings.google_sheets_enabled:
+        return
+    if not settings.google_sheets_spreadsheet_id.strip():
+        return
+    if not settings.google_sheets_credentials_file.strip():
+        return
+
+    row = _build_row(state)
+    await asyncio.to_thread(_append_google_sheet_sync, row)
