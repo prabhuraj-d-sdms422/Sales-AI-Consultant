@@ -9,7 +9,7 @@ from app.prompts.conversion_prompt import CONVERSION_PROMPT, ESCALATION_PROMPT
 from app.prompts.solution_advisor_prompt import _format_profile
 from app.services.email_service import notify_sales_lead_captured, save_lead_locally
 from app.services.lead_service import persist_lead_incrementally
-from app.services.sheets_service import append_lead_locally
+from app.services.sheets_service import append_lead_google_sheets, append_lead_locally
 
 
 def _content(msg) -> str:
@@ -31,20 +31,24 @@ def _build_messages(state: ConversationState, system_prompt: str) -> list:
 
 
 async def _trigger_lead_delivery(state: ConversationState) -> None:
+    """Persist lead to JSON/Excel/Sheets best-effort; always attempt email so there is no data loss."""
+    session_id = state.get("session_id")
     try:
         await save_lead_locally(state)
+    except Exception as e:
+        logging.error("save_lead_locally failed for session %s: %s", session_id, e)
+    try:
         await append_lead_locally(state)
     except Exception as e:
-        logging.error("Lead delivery failed for session %s: %s", state.get("session_id"), e)
-        return
+        logging.error("append_lead_locally (Excel) failed for session %s: %s", session_id, e)
+    try:
+        await append_lead_google_sheets(state)
+    except Exception as e:
+        logging.error("append_lead_google_sheets failed for session %s: %s", session_id, e)
     try:
         await notify_sales_lead_captured(state)
     except Exception as e:
-        logging.error(
-            "SendGrid notification failed for session %s (lead files already saved): %s",
-            state.get("session_id"),
-            e,
-        )
+        logging.error("SendGrid notify_sales_lead_captured failed for session %s: %s", session_id, e)
 
 
 def _has_contact_info(profile: dict) -> bool:

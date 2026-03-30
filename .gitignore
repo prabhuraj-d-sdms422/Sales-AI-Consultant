@@ -19,3 +19,5 @@ venv/
 .venv/
 frontend/node_modules/
 frontend/dist/
+credentials/
+backend/credentials/
