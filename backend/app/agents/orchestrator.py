@@ -8,6 +8,11 @@ from app.config.settings import settings
 from app.models.state import ConversationState
 from app.prompts.orchestrator_prompt import ORCHESTRATOR_SYSTEM_PROMPT
 from app.services.session_service import save_state
+from app.services.token_cost_service import (
+    add_usage_totals,
+    extract_token_usage_from_message,
+    get_active_provider_and_model,
+)
 from app.utils.intent_classes import IntentClass
 
 
@@ -221,6 +226,20 @@ async def orchestrator_node(state: ConversationState) -> dict:
             HumanMessage(content=classification_prompt),
         ]
     )
+    provider, model = get_active_provider_and_model()
+    usage = extract_token_usage_from_message(response)
+    session_token_usage = add_usage_totals(
+        current=state.get("session_token_usage"),
+        add_input_tokens=usage["input_tokens"],
+        add_output_tokens=usage["output_tokens"],
+        provider=provider,
+        model=model,
+    )
+    last_call_token_usage = {
+        "provider": provider,
+        "model": model,
+        **usage,
+    }
     result = _parse_orchestrator_response(response.content or "")
 
     intent = str(result.get("intent", IntentClass.GENERAL_INQUIRY.value))
@@ -279,6 +298,8 @@ async def orchestrator_node(state: ConversationState) -> dict:
         "agent_mode": agent_mode,
         "client_profile": merged_profile,
         "lead_temperature": lead_temperature,
+        "session_token_usage": session_token_usage,
+        "last_call_token_usage": last_call_token_usage,
     }
 
     if intent == IntentClass.MANIPULATION_ATTEMPT.value:

@@ -3,11 +3,12 @@ import { createSession } from "../utils/api.js";
 import { useChat } from "../hooks/useChat.js";
 import MessageBubble from "./MessageBubble.jsx";
 import TypingIndicator from "./TypingIndicator.jsx";
+import TokenUsagePanel from "./TokenUsagePanel.jsx";
 
 export default function ChatWidget() {
   const [sessionId, setSessionId] = useState(null);
   const [input, setInput] = useState("");
-  const { messages, streamingText, isTyping, error, sendMessage } =
+  const { messages, streamingText, isTyping, tokenUsage, error, sendMessage } =
     useChat(sessionId);
   const listRef = useRef(null);
 
@@ -56,6 +57,7 @@ export default function ChatWidget() {
           </div>
         </div>
       </header>
+      <TokenUsagePanel tokenUsage={tokenUsage} />
       <div
         ref={listRef}
         className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4"

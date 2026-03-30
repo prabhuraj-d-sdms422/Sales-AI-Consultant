@@ -7,6 +7,11 @@ from app.prompts.discovery_prompt import get_tone_calibration
 from app.prompts.objection_handler_prompt import OBJECTION_HANDLER_PROMPT
 from app.prompts.solution_advisor_prompt import _format_profile
 from app.services.lead_service import persist_lead_incrementally
+from app.services.token_cost_service import (
+    add_usage_totals,
+    extract_token_usage_from_message,
+    get_active_provider_and_model,
+)
 
 
 def _content(msg) -> str:
@@ -43,6 +48,15 @@ async def objection_handler_node(state: ConversationState) -> dict:
     messages = _build_messages(state, system_prompt)
     llm = get_llm(streaming=False, temperature=0.2)
     response = await llm.ainvoke(messages)
+    provider, model = get_active_provider_and_model()
+    usage = extract_token_usage_from_message(response)
+    session_token_usage = add_usage_totals(
+        current=state.get("session_token_usage"),
+        add_input_tokens=usage["input_tokens"],
+        add_output_tokens=usage["output_tokens"],
+        provider=provider,
+        model=model,
+    )
     response_text = response.content or ""
     if isinstance(response_text, list):
         response_text = "".join(str(x) for x in response_text)
@@ -55,4 +69,6 @@ async def objection_handler_node(state: ConversationState) -> dict:
         "current_agent": "objection_handler",
         "conversation_stage": "OBJECTION",
         "should_stream": True,
+        "session_token_usage": session_token_usage,
+        "last_call_token_usage": {"provider": provider, "model": model, **usage},
     }
