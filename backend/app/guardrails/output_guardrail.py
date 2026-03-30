@@ -4,10 +4,6 @@ import os
 import re
 from datetime import datetime
 from functools import lru_cache
-from typing import Optional
-
-from guardrails_grhub_competitor_check import CompetitorCheck
-
 from app.config.settings import settings
 from app.models.state import ConversationState
 
@@ -40,11 +36,13 @@ def _log_guardrail(session_id: str, flag: dict) -> None:
 
 
 @lru_cache(maxsize=1)
-def _competitor_validator() -> Optional[CompetitorCheck]:
+def _competitor_validator():
     """
     Loaded once from settings.  Returns None when the blocklist is empty
     so we skip validation gracefully.
     """
+    from guardrails.hub import CompetitorCheck
+
     names = [x.strip() for x in (settings.competitor_names_blocklist or "").split(",") if x.strip()]
     if not names:
         return None

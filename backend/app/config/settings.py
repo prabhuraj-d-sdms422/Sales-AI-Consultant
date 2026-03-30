@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     intent_confidence_threshold: float = 0.70
     stream_token_buffer: int = 20
 
+    # SendGrid — lead notifications (after JSON + Excel save). Leave API key empty to disable.
+    sendgrid_api_key: str = ""
+    sendgrid_from_email: str = ""
+    sendgrid_from_name: str = "Stark Digital AI Sales Consultant"
+    sendgrid_to_email: str = ""  # comma-separated recipient addresses
+    sendgrid_sandbox_mode: bool = False  # True = SendGrid accepts but does not deliver (testing)
+
     # Identity
     consultant_name: str = "Alex"
     company_name: str = "Stark Digital"

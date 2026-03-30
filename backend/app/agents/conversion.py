@@ -7,7 +7,7 @@ from app.config.settings import settings
 from app.models.state import ConversationState
 from app.prompts.conversion_prompt import CONVERSION_PROMPT, ESCALATION_PROMPT
 from app.prompts.solution_advisor_prompt import _format_profile
-from app.services.email_service import save_lead_locally
+from app.services.email_service import notify_sales_lead_captured, save_lead_locally
 from app.services.lead_service import persist_lead_incrementally
 from app.services.sheets_service import append_lead_locally
 
@@ -36,6 +36,15 @@ async def _trigger_lead_delivery(state: ConversationState) -> None:
         await append_lead_locally(state)
     except Exception as e:
         logging.error("Lead delivery failed for session %s: %s", state.get("session_id"), e)
+        return
+    try:
+        await notify_sales_lead_captured(state)
+    except Exception as e:
+        logging.error(
+            "SendGrid notification failed for session %s (lead files already saved): %s",
+            state.get("session_id"),
+            e,
+        )
 
 
 def _has_contact_info(profile: dict) -> bool:

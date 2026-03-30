@@ -1,5 +1,6 @@
 import pytest
 
+import app.guardrails  # noqa: F401  # hub registry path before guardrails.hub
 import app.db.redis_client as redis_client
 
 

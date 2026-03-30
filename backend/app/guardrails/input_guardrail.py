@@ -4,9 +4,6 @@ import os
 from datetime import datetime
 from functools import lru_cache
 
-from guardrails_grhub_detect_jailbreak import DetectJailbreak
-from guardrails_grhub_toxic_language import ToxicLanguage
-
 from app.models.state import ConversationState
 
 logger = logging.getLogger(__name__)
@@ -27,14 +24,18 @@ def _log_guardrail(session_id: str, flag: dict) -> None:
 
 
 @lru_cache(maxsize=1)
-def _toxic_validator() -> ToxicLanguage:
+def _toxic_validator():
     """Loaded once; Albert-based sentence-level toxicity classifier (runs on CPU)."""
+    from guardrails.hub import ToxicLanguage
+
     return ToxicLanguage(threshold=0.7, validation_method="sentence", device="cpu")
 
 
 @lru_cache(maxsize=1)
-def _jailbreak_validator() -> DetectJailbreak:
+def _jailbreak_validator():
     """Loaded once; BERT-based prompt-saturation / jailbreak detector (runs on CPU)."""
+    from guardrails.hub import DetectJailbreak
+
     return DetectJailbreak(threshold=0.81, device="cpu")
 
 
