@@ -162,6 +162,7 @@ async def conversion_node(state: ConversationState) -> dict:
         "current_response": response_text,
         "current_agent": "conversion",
         "should_stream": True,
+        "last_answer_sources": [],
         "session_token_usage": session_token_usage,
         "last_call_token_usage": {"provider": provider, "model": model, **usage},
     }

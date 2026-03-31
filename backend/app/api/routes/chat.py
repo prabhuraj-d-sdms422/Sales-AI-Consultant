@@ -46,6 +46,7 @@ async def send_message(request: ChatRequest):
 async def _stream_chat(state: dict):
     accumulated = dict(state)
     client_response_text = ""
+    last_sources_payload: dict | None = None
     try:
         async for chunk in conversation_graph.astream(accumulated):
             for node_name, node_output in chunk.items():
@@ -67,6 +68,14 @@ async def _stream_chat(state: dict):
                     continue
 
                 client_response_text = str(text_to_stream)
+                # Capture sources emitted by agents during this run (if any).
+                src = accumulated.get("last_answer_sources")
+                if isinstance(src, list):
+                    last_sources_payload = {
+                        "type": "sources",
+                        "agent": accumulated.get("current_agent") or "",
+                        "sources": src,
+                    }
                 buffer: list[str] = []
                 token_count = 0
                 buffering = True
@@ -88,6 +97,19 @@ async def _stream_chat(state: dict):
             msgs = list(accumulated.get("messages") or [])
             msgs.append(AIMessage(content=client_response_text))
             accumulated["messages"] = msgs
+
+        # Append sources history (background) and emit to UI as a separate SSE event.
+        if last_sources_payload is not None:
+            hist = accumulated.get("answer_sources")
+            if not isinstance(hist, list):
+                hist = []
+            hist.append(
+                {
+                    "agent": last_sources_payload.get("agent") or "",
+                    "sources": last_sources_payload.get("sources") or [],
+                }
+            )
+            accumulated["answer_sources"] = hist
         await save_state(state["session_id"], accumulated)
         if settings.save_conversations_enabled:
             await save_session_conversation(
@@ -95,6 +117,8 @@ async def _stream_chat(state: dict):
                 messages=list(accumulated.get("messages") or []),
                 token_usage=accumulated.get("session_token_usage") or None,
             )
+        if last_sources_payload is not None:
+            yield f"data: {json.dumps(last_sources_payload)}\n\n"
         # Emit latest usage totals for live UI display.
         session_usage = accumulated.get("session_token_usage") or {}
         last_usage = accumulated.get("last_call_token_usage") or {}
