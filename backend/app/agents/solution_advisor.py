@@ -15,6 +15,7 @@ from app.services.lead_service import persist_lead_incrementally
 from app.services.rag_service import (
     NAMESPACE_HEALTHCARE,
     NAMESPACE_INSURANCE,
+    get_industry_context_with_sources,
     get_industry_context,
     is_healthcare_context,
     is_insurance_context,
@@ -70,6 +71,7 @@ async def solution_advisor_node(state: ConversationState) -> dict:
 
     # ── RAG context lookup ─────────────────────────────────────────────────────
     rag_context: str | None = None
+    rag_sources: list[dict] = []
     query_text = _build_query_text(profile)
 
     if query_text:
@@ -87,7 +89,7 @@ async def solution_advisor_node(state: ConversationState) -> dict:
                 namespace,
                 state.get("session_id"),
             )
-            rag_context = await get_industry_context(
+            rag_context, rag_sources = await get_industry_context_with_sources(
                 query_text=query_text,
                 namespace=namespace,
                 top_k=settings.rag_top_k,
@@ -146,6 +148,7 @@ async def solution_advisor_node(state: ConversationState) -> dict:
         "current_agent":       "solution_advisor",
         "conversation_stage":  "PROPOSAL",
         "should_stream":       True,
+        "last_answer_sources": rag_sources,
         "session_token_usage": session_token_usage,
         "last_call_token_usage": {"provider": provider, "model": model, **usage},
     }
