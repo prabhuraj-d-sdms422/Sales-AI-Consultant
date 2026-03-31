@@ -8,6 +8,8 @@ from app.models.state import ConversationState
 from app.prompts.conversion_prompt import CONVERSION_PROMPT, ESCALATION_PROMPT
 from app.prompts.solution_advisor_prompt import _format_profile
 from app.services.email_service import notify_sales_lead_captured, save_lead_locally
+from app.services.lead_enrichment_service import enrich_lead_from_conversation_safe
+from app.services.hubspot_service import sync_lead_to_hubspot_safe
 from app.services.lead_service import persist_lead_incrementally
 from app.services.sheets_service import append_lead_google_sheets, append_lead_locally
 from app.services.token_cost_service import (
@@ -36,22 +38,41 @@ def _build_messages(state: ConversationState, system_prompt: str) -> list:
 
 
 async def _trigger_lead_delivery(state: ConversationState) -> None:
-    """Persist lead to JSON/Excel/Sheets best-effort; always attempt email so there is no data loss."""
+    """Persist lead: HubSpot first (for CRM link), then JSON/Excel/Sheets; always attempt email."""
     session_id = state.get("session_id")
+
+    delivery_state: ConversationState = dict(state)
+
+    # Best-effort enrichment so Sheets/HubSpot/Email always have short problem/solution summaries
+    # even when the user doesn't type "Problem:" labels or routing doesn't hit solution_advisor.
+    enrichment = await enrich_lead_from_conversation_safe(delivery_state)
+    profile = dict(delivery_state.get("client_profile") or {})
+    if enrichment.get("problem_summary") and not (profile.get("problem_understood") or profile.get("problem_raw")):
+        profile["problem_understood"] = enrichment["problem_summary"]
+    delivery_state["client_profile"] = profile
+    if enrichment.get("solutions_summary"):
+        existing = list(delivery_state.get("solutions_discussed") or [])
+        if not existing:
+            delivery_state["solutions_discussed"] = [enrichment["solutions_summary"]]
+
+    hubspot_url = await sync_lead_to_hubspot_safe(delivery_state) or ""
+    if hubspot_url:
+        delivery_state["hubspot_contact_url"] = hubspot_url
+
     try:
-        await save_lead_locally(state)
+        await save_lead_locally(delivery_state)
     except Exception as e:
         logging.error("save_lead_locally failed for session %s: %s", session_id, e)
     try:
-        await append_lead_locally(state)
+        await append_lead_locally(delivery_state)
     except Exception as e:
         logging.error("append_lead_locally (Excel) failed for session %s: %s", session_id, e)
     try:
-        await append_lead_google_sheets(state)
+        await append_lead_google_sheets(delivery_state)
     except Exception as e:
         logging.error("append_lead_google_sheets failed for session %s: %s", session_id, e)
     try:
-        await notify_sales_lead_captured(state)
+        await notify_sales_lead_captured(delivery_state)
     except Exception as e:
         logging.error("SendGrid notify_sales_lead_captured failed for session %s: %s", session_id, e)
 

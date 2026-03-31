@@ -160,6 +160,22 @@ When a lead is captured, the backend will:
 - append a row in `backend/data/leads.xlsx`
 - **append the same row to Google Sheets** (best-effort; failures are logged, local files are still saved)
 
+### 6.2 HubSpot CRM (optional)
+
+When enabled, each captured lead is **created or updated in HubSpot** (contact fields: name, company, email, phone). A **note** is attached with **problem/context** and **solutions discussed**. The **HubSpot record URL** is stored in the lead JSON, email notification, Excel row, and Google Sheet column **HubSpot URL** (so sales can open the contact in one click).
+
+1. In HubSpot: **Settings → Integrations → Private Apps → Create private app**
+2. Grant scopes: **crm.objects.contacts** (read + write), **crm.objects.notes** (read + write)
+3. Copy the **access token** and your **Portal ID** (Hub ID from the URL: `app.hubspot.com/contacts/<PORTAL>/…`)
+
+```env
+HUBSPOT_ENABLED=true
+HUBSPOT_ACCESS_TOKEN=pat-…
+HUBSPOT_PORTAL_ID=12345678
+```
+
+If `HUBSPOT_PORTAL_ID` is empty, contacts are still created; the **HubSpot URL** column stays blank until you set the portal id.
+
 ### 7. Run the backend
 
 From `backend/` with `PYTHONPATH` set so `app` resolves:
@@ -212,4 +228,5 @@ Uses **fakeredis** in `tests/conftest.py` so tests don’t require a live Redis.
 
 ## Phase 2 (deferred)
 
-PostgreSQL, SendGrid, Google Sheets, Calendly, RAG/Pinecone for advisors — see plan Section 21.
+PostgreSQL, Calendly, advanced RAG/Pinecone advisors — see plan Section 21.  
+**SendGrid email, Google Sheets lead tracker, and HubSpot CRM sync are already implemented** — see sections 6.1, 6.2, and the integration docs under `Documents/`.

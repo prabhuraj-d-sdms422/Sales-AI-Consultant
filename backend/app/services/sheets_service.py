@@ -15,6 +15,23 @@ from app.config.settings import settings
 from app.models.state import ConversationState
 
 EXCEL_PATH = "data/leads.xlsx"
+OLD_HEADERS = [
+    "Timestamp",
+    "Lead Temp",
+    "Name",
+    "Company",
+    "Email",
+    "Phone",
+    "Industry",
+    "Problem",
+    "Budget Signal",
+    "Urgency",
+    "Decision Maker",
+    "Solutions Discussed",
+    "Objections Raised",
+    "Stage",
+    "Session ID",
+]
 HEADERS = [
     "Timestamp",
     "Lead Temp",
@@ -31,6 +48,7 @@ HEADERS = [
     "Objections Raised",
     "Stage",
     "Session ID",
+    "HubSpot URL",
 ]
 
 
@@ -52,6 +70,7 @@ def _build_row(state: ConversationState) -> list[str]:
         ", ".join(state.get("objections_raised", []) or []),
         str(state.get("conversation_stage", "") or ""),
         str(state.get("session_id", "") or ""),
+        str(state.get("hubspot_contact_url", "") or ""),
     ]
 
 
@@ -62,6 +81,14 @@ async def append_lead_locally(state: ConversationState) -> None:
     if os.path.exists(EXCEL_PATH):
         wb = load_workbook(EXCEL_PATH)
         ws = wb.active
+        # Auto-upgrade headers for existing workbooks created before HubSpot URL column existed.
+        try:
+            existing = [c.value for c in ws[1] if c.value is not None]
+            if existing == OLD_HEADERS:
+                for col_idx, header in enumerate(HEADERS, start=1):
+                    ws.cell(row=1, column=col_idx, value=header)
+        except Exception:
+            pass
     else:
         wb = Workbook()
         ws = wb.active
@@ -116,6 +143,20 @@ def _append_google_sheet_sync(row: list[str]) -> None:
             valueInputOption="RAW",
             body={"values": [HEADERS]},
         ).execute()
+    else:
+        # Auto-upgrade existing trackers created before HubSpot URL column existed.
+        # Only overwrite row 1 when it exactly matches the previous header set.
+        try:
+            row1 = [str(x) for x in (existing[0] or [])]
+            if row1 == OLD_HEADERS:
+                service.spreadsheets().values().update(
+                    spreadsheetId=settings.google_sheets_spreadsheet_id,
+                    range=f"{sheet}!A1",
+                    valueInputOption="RAW",
+                    body={"values": [HEADERS]},
+                ).execute()
+        except Exception:
+            pass
 
     service.spreadsheets().values().append(
         spreadsheetId=settings.google_sheets_spreadsheet_id,

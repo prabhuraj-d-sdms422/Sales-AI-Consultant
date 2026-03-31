@@ -26,6 +26,7 @@ async def save_lead_locally(state: ConversationState) -> None:
         "solutions_discussed": state.get("solutions_discussed", []),
         "objections_raised": state.get("objections_raised", []),
         "escalation_requested": state.get("escalation_requested", False),
+        "hubspot_contact_url": state.get("hubspot_contact_url", "") or "",
     }
     filepath = os.path.join(LEADS_DIR, f"{state['session_id']}.json")
     with open(filepath, "w", encoding="utf-8") as f:
@@ -56,6 +57,7 @@ def _lead_notification_bodies(state: ConversationState) -> tuple[str, str]:
         ("Urgency", profile.get("urgency", "")),
         ("Solutions discussed", ", ".join(state.get("solutions_discussed", []) or [])),
         ("Objections raised", ", ".join(state.get("objections_raised", []) or [])),
+        ("HubSpot", state.get("hubspot_contact_url", "") or ""),
     ]
     plain = "\n".join(f"{k}: {v}" for k, v in lines)
     rows = "".join(f"<tr><th align='left'>{esc(k)}</th><td>{esc(v)}</td></tr>" for k, v in lines)
