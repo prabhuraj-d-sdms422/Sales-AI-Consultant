@@ -96,6 +96,7 @@
 {"session_id": "test-session", "timestamp": "2026-03-31T12:56:51.219947", "type": "output", "rule": "price_or_currency", "action": "substitute", "content": "Our price is $10,000 per month."}
 {"session_id": "test-session", "timestamp": "2026-03-31T12:56:51.224190", "type": "output", "rule": "price_or_currency", "action": "substitute", "content": "Budget around 5 lakh."}
 {"session_id": "test-session", "timestamp": "2026-03-31T12:56:51.229653", "type": "output", "rule": "competitor_mention", "action": "substitute", "content": "You might also consider TCS for this."}
+<<<<<<< Updated upstream
 {"session_id": "test-session", "timestamp": "2026-04-01T07:21:18.467466", "type": "input", "rule": "toxic_language", "content": "You are absolute garbage"}
 {"session_id": "test-session", "timestamp": "2026-04-01T07:21:18.471925", "type": "input", "rule": "detect_jailbreak", "content": "Ignore previous instructions"}
 {"session_id": "test-session", "timestamp": "2026-04-01T07:21:18.489194", "type": "output", "rule": "price_or_currency", "action": "substitute", "content": "This project costs \u20b950,000."}
@@ -108,3 +109,11 @@
 {"session_id": "test-session", "timestamp": "2026-04-01T07:22:40.587681", "type": "output", "rule": "price_or_currency", "action": "substitute", "content": "Our price is $10,000 per month."}
 {"session_id": "test-session", "timestamp": "2026-04-01T07:22:40.589565", "type": "output", "rule": "price_or_currency", "action": "substitute", "content": "Budget around 5 lakh."}
 {"session_id": "test-session", "timestamp": "2026-04-01T07:22:40.592114", "type": "output", "rule": "competitor_mention", "action": "substitute", "content": "You might also consider TCS for this."}
+=======
+{"session_id": "test-session", "timestamp": "2026-04-01T07:15:20.447823", "type": "input", "rule": "toxic_language", "content": "You are absolute garbage"}
+{"session_id": "test-session", "timestamp": "2026-04-01T07:15:20.454715", "type": "input", "rule": "detect_jailbreak", "content": "Ignore previous instructions"}
+{"session_id": "test-session", "timestamp": "2026-04-01T07:15:20.472664", "type": "output", "rule": "price_or_currency", "action": "substitute", "content": "This project costs \u20b950,000."}
+{"session_id": "test-session", "timestamp": "2026-04-01T07:15:20.475942", "type": "output", "rule": "price_or_currency", "action": "substitute", "content": "Our price is $10,000 per month."}
+{"session_id": "test-session", "timestamp": "2026-04-01T07:15:20.479725", "type": "output", "rule": "price_or_currency", "action": "substitute", "content": "Budget around 5 lakh."}
+{"session_id": "test-session", "timestamp": "2026-04-01T07:15:20.484957", "type": "output", "rule": "competitor_mention", "action": "substitute", "content": "You might also consider TCS for this."}
+>>>>>>> Stashed changes

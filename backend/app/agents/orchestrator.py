@@ -7,6 +7,7 @@ from app.config.llm_provider import get_classification_llm
 from app.config.settings import settings
 from app.models.state import ConversationState
 from app.prompts.orchestrator_prompt import ORCHESTRATOR_SYSTEM_PROMPT
+from app.services.conversation_memory_service import update_summary_if_needed
 from app.services.session_service import save_state
 from app.services.token_cost_service import (
     add_usage_totals,
@@ -338,6 +339,15 @@ async def orchestrator_node(state: ConversationState) -> dict:
 
     if intent == IntentClass.MANIPULATION_ATTEMPT.value:
         updates["current_response"] = manipulation_safe_fallback
+
+    # Rolling summary refresh (best-effort, occasional) + turn counter increment.
+    # We increment on every user turn; when a refresh runs it resets to 0.
+    turns = int(state.get("summary_turns_since_update") or 0)
+    updates["summary_turns_since_update"] = turns + 1
+    merged_for_summary = {**dict(state), **updates}
+    summary_updates = await update_summary_if_needed(merged_for_summary)  # best-effort
+    updates.update(summary_updates)
+
     merged = {**dict(state), **updates}
     await save_state(state["session_id"], merged)
     return updates

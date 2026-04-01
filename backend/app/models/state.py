@@ -60,3 +60,7 @@ class ConversationState(TypedDict):
     # Sources / provenance per assistant answer (optional; additive)
     last_answer_sources: NotRequired[list[dict]]
     answer_sources: NotRequired[list[dict]]
+
+    # Rolling summary / memory (optional; additive)
+    conversation_summary: NotRequired[str]
+    summary_turns_since_update: NotRequired[int]

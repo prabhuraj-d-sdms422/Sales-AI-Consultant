@@ -11,6 +11,7 @@ from app.prompts.solution_advisor_prompt import (
     SOLUTION_ADVISOR_RAG_PROMPT,
     _format_profile,
 )
+from app.services.conversation_memory_service import format_memory_block_for_prompt
 from app.services.lead_service import persist_lead_incrementally
 from app.services.rag_service import (
     NAMESPACE_HEALTHCARE,
@@ -123,6 +124,9 @@ async def solution_advisor_node(state: ConversationState) -> dict:
             consultant_name=settings.consultant_name,
             company_name=settings.company_name,
         )
+    memory_block = format_memory_block_for_prompt(state)
+    if memory_block:
+        system_prompt = system_prompt + "\n\n" + memory_block
 
     messages     = _build_messages(state, system_prompt)
     llm          = get_llm(streaming=False)

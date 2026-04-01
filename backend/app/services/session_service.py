@@ -76,6 +76,9 @@ async def create_session() -> str:
         "escalation_triggered": False,
         "should_stream": True,
         "conversation_ended": False,
+        # Rolling summary / memory (optional)
+        "conversation_summary": "",
+        "summary_turns_since_update": 0,
     }
     await save_state(session_id, initial_state)
     return session_id

@@ -9,6 +9,7 @@ from app.prompts.discovery_prompt import (
     get_priority_question_hint,
     get_tone_calibration,
 )
+from app.services.conversation_memory_service import format_memory_block_for_prompt
 from app.services.lead_service import persist_lead_incrementally
 from app.services.token_cost_service import (
     add_usage_totals,
@@ -48,6 +49,9 @@ async def discovery_node(state: ConversationState) -> dict:
         tone_calibration=tone_block,
         priority_question_hint=priority_hint,
     )
+    memory_block = format_memory_block_for_prompt(state)
+    if memory_block:
+        system_prompt = system_prompt + "\n\n" + memory_block
 
     messages = _build_messages(state, system_prompt)
     llm = get_llm(streaming=False)

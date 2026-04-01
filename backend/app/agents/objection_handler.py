@@ -6,6 +6,7 @@ from app.models.state import ConversationState
 from app.prompts.discovery_prompt import get_tone_calibration
 from app.prompts.objection_handler_prompt import OBJECTION_HANDLER_PROMPT
 from app.prompts.solution_advisor_prompt import _format_profile
+from app.services.conversation_memory_service import format_memory_block_for_prompt
 from app.services.lead_service import persist_lead_incrementally
 from app.services.token_cost_service import (
     add_usage_totals,
@@ -45,6 +46,9 @@ async def objection_handler_node(state: ConversationState) -> dict:
         current_objection=last_message,
         tone_calibration=tone_block,
     )
+    memory_block = format_memory_block_for_prompt(state)
+    if memory_block:
+        system_prompt = system_prompt + "\n\n" + memory_block
     messages = _build_messages(state, system_prompt)
     llm = get_llm(streaming=False, temperature=0.2)
     response = await llm.ainvoke(messages)

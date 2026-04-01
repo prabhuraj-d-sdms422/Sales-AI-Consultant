@@ -7,6 +7,7 @@ from app.config.settings import settings
 from app.models.state import ConversationState
 from app.prompts.conversion_prompt import CONVERSION_PROMPT, ESCALATION_PROMPT
 from app.prompts.solution_advisor_prompt import _format_profile
+from app.services.conversation_memory_service import format_memory_block_for_prompt
 from app.services.email_service import notify_sales_lead_captured, save_lead_locally
 from app.services.lead_enrichment_service import enrich_lead_from_conversation_safe
 from app.services.hubspot_service import sync_lead_to_hubspot_safe
@@ -151,6 +152,9 @@ async def conversion_node(state: ConversationState) -> dict:
             lead_temperature=state.get("lead_temperature", "warm"),
         )
         updated_state_flags = {"conversation_stage": "CONVERSION"}
+    memory_block = format_memory_block_for_prompt(state)
+    if memory_block:
+        system_prompt = system_prompt + "\n\n" + memory_block
 
     messages = _build_messages(state, system_prompt)
     llm = get_llm(streaming=False)
