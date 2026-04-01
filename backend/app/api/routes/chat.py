@@ -21,6 +21,8 @@ async def send_message(request: ChatRequest):
     state = await load_state(request.session_id)
     if not state:
         raise HTTPException(status_code=404, detail="Session not found")
+    if bool(state.get("conversation_ended")):
+        raise HTTPException(status_code=409, detail="Session has ended")
     logger.info(
         "CHAT | session=%s | stage=%s | msg_preview=%.60r",
         request.session_id,

@@ -85,6 +85,16 @@ class Settings(BaseSettings):
     session_timeout_minutes: int = 30
     save_conversations_enabled: bool = False
 
+    # Inactivity UX (frontend timers; backend sweep uses session_timeout_minutes)
+    inactivity_prompt_minutes: int = Field(
+        default=10,
+        validation_alias=AliasChoices("INACTIVITY_PROMPT_MINUTES"),
+    )
+    inactivity_end_minutes: int = Field(
+        default=20,
+        validation_alias=AliasChoices("INACTIVITY_END_MINUTES"),
+    )
+
     # Output guardrail — competitor names (lowercase), comma-separated in env
     competitor_names_blocklist: str = "tcs,infosys,wipro,accenture,cognizant"
 

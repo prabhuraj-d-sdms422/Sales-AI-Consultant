@@ -14,7 +14,7 @@ from app.services.token_cost_service import (
     extract_token_usage_from_message,
     get_active_provider_and_model,
 )
-from app.utils.intent_classes import IntentClass
+from app.utils.intent_classes import IntentClass  # noqa: F401 (kept for conversion agent imports)
 
 
 def _parse_orchestrator_response(content: str) -> dict:

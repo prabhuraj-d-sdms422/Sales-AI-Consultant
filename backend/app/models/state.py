@@ -42,6 +42,7 @@ class ConversationState(TypedDict):
     escalation_triggered: bool
     should_stream: bool
     conversation_ended: bool
+    lead_delivered: bool
 
     # Token usage + costing (per session)
     # Stored in Redis and optionally archived to backend/data/Conversations/*.json

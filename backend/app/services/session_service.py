@@ -71,6 +71,7 @@ async def create_session() -> str:
         "output_guardrail_passed": True,
         "guardrail_flags": [],
         "lead_persisted": False,
+        "lead_delivered": False,
         "lead_temperature": "cold",
         "escalation_requested": False,
         "escalation_triggered": False,

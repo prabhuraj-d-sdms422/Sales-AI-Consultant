@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getApiBase } from "../utils/api.js";
+import { createSession, getApiBase } from "../utils/api.js";
 
 const CHAT_MESSAGES_KEY = "stark.chat.messages";
+const CHAT_SESSION_ID_KEY = "stark.chat.sessionId";
 
-export function useChat(sessionId) {
+export function useChat(sessionId, setSessionId) {
   const [messages, setMessages] = useState([]);
   const [streamingText, setStreamingText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -52,12 +53,29 @@ export function useChat(sessionId) {
       abortRef.current = controller;
 
       try {
-        const res = await fetch(`${api}/chat/message`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sessionId, message: text.trim() }),
-          signal: controller.signal,
-        });
+        const doFetch = async (sid) =>
+          fetch(`${api}/chat/message`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sid, message: text.trim() }),
+            signal: controller.signal,
+          });
+
+        let res = await doFetch(sessionId);
+        if ((res.status === 404 || res.status === 409) && typeof setSessionId === "function") {
+          // Session expired (Redis TTL) — create a new one and retry once.
+          const data = await createSession();
+          const newId = data?.session_id;
+          if (newId) {
+            try {
+              window.sessionStorage.setItem(CHAT_SESSION_ID_KEY, newId);
+            } catch {
+              // ignore storage failures
+            }
+            setSessionId(newId);
+            res = await doFetch(newId);
+          }
+        }
         if (!res.ok) throw new Error(`Chat error: ${res.status}`);
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -99,7 +117,7 @@ export function useChat(sessionId) {
         abortRef.current = null;
       }
     },
-    [sessionId],
+    [sessionId, setSessionId],
   );
 
   return { messages, streamingText, isTyping, tokenUsage, lastSources, error, sendMessage };
