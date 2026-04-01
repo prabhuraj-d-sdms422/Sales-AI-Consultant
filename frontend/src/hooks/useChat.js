@@ -1,5 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getApiBase } from "../utils/api.js";
+
+const CHAT_MESSAGES_KEY = "stark.chat.messages";
 
 export function useChat(sessionId) {
   const [messages, setMessages] = useState([]);
@@ -9,6 +11,32 @@ export function useChat(sessionId) {
   const [lastSources, setLastSources] = useState(null);
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    if (typeof window === "undefined") return;
+    if (messages.length) return;
+    try {
+      const raw = window.sessionStorage.getItem(CHAT_MESSAGES_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      setMessages(parsed);
+    } catch {
+      // ignore unreadable storage
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messages));
+    } catch {
+      // ignore quota / privacy mode failures
+    }
+  }, [sessionId, messages]);
 
   const sendMessage = useCallback(
     async (text) => {

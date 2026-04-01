@@ -5,6 +5,25 @@ import MessageBubble from "./MessageBubble.jsx";
 import TypingIndicator from "./TypingIndicator.jsx";
 import TokenUsagePanel from "./TokenUsagePanel.jsx";
 
+const CHAT_SESSION_ID_KEY = "stark.chat.sessionId";
+const CHAT_MESSAGES_KEY = "stark.chat.messages";
+
+function getNavigationType() {
+  try {
+    const navEntries = performance.getEntriesByType?.("navigation");
+    if (navEntries && navEntries[0]?.type) return navEntries[0].type;
+  } catch {
+    // ignore
+  }
+  // Fallback for older browsers (deprecated but still widely supported).
+  // 1 = reload, 2 = back_forward, 0 = navigate
+  // eslint-disable-next-line no-restricted-globals
+  const legacy = performance?.navigation?.type;
+  if (legacy === 1) return "reload";
+  if (legacy === 2) return "back_forward";
+  return "navigate";
+}
+
 export default function ChatWidget() {
   const [sessionId, setSessionId] = useState(null);
   const [input, setInput] = useState("");
@@ -15,9 +34,35 @@ export default function ChatWidget() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const navType = typeof window !== "undefined" ? getNavigationType() : "navigate";
+      if (navType === "reload") {
+        try {
+          window.sessionStorage.removeItem(CHAT_SESSION_ID_KEY);
+          window.sessionStorage.removeItem(CHAT_MESSAGES_KEY);
+        } catch {
+          // ignore
+        }
+      }
+
+      try {
+        const existing = window.sessionStorage.getItem(CHAT_SESSION_ID_KEY);
+        if (existing) {
+          if (!cancelled) setSessionId(existing);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+
       try {
         const data = await createSession();
-        if (!cancelled) setSessionId(data.session_id);
+        if (cancelled) return;
+        setSessionId(data.session_id);
+        try {
+          window.sessionStorage.setItem(CHAT_SESSION_ID_KEY, data.session_id);
+        } catch {
+          // ignore
+        }
       } catch {
         if (!cancelled) setSessionId(null);
       }
