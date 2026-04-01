@@ -29,6 +29,7 @@ async def persist_lead_incrementally(session_id: str, profile: dict, state: dict
     existing["conversation_stage"] = state.get("conversation_stage", "")
     existing["solutions_discussed"] = state.get("solutions_discussed", [])
     existing["objections_raised"] = state.get("objections_raised", [])
+    existing["problems_identified"] = state.get("problems_identified", []) or []
     existing["escalation_requested"] = state.get("escalation_requested", False)
     existing["updated_at"] = datetime.utcnow().isoformat()
     existing["lead_persisted"] = True

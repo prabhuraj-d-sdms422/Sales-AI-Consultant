@@ -211,6 +211,26 @@ def _extract_profile_fields(text: str) -> dict:
     return out
 
 
+def _normalize_problem_text(text: str) -> str:
+    t = str(text or "").strip()
+    # Keep this conservative to avoid accidental conflation.
+    t = re.sub(r"\s+", " ", t)
+    return t.strip(" -–—•\t")
+
+
+def _append_unique_problem(existing: list[str] | None, new_problem: str) -> list[str]:
+    problems: list[str] = list(existing or [])
+    p = _normalize_problem_text(new_problem)
+    if not p:
+        return problems
+    p_l = p.lower()
+    for e in problems:
+        if _normalize_problem_text(e).lower() == p_l:
+            return problems
+    problems.append(p)
+    return problems
+
+
 async def orchestrator_node(state: ConversationState) -> dict:
     llm = get_classification_llm()
     msgs = state.get("messages") or []
@@ -263,6 +283,7 @@ async def orchestrator_node(state: ConversationState) -> dict:
         agent_mode = "CONVERSATIONAL"
 
     base_profile = dict(state.get("client_profile") or {})
+    base_problems = list(state.get("problems_identified") or [])
 
     def _is_empty(v: object) -> bool:
         if v is None:
@@ -283,6 +304,18 @@ async def orchestrator_node(state: ConversationState) -> dict:
             continue
         merged_profile[k] = v
 
+    # Accumulate problems across the session (multi-problem support).
+    # Sources, in order:
+    # - labeled extraction ("Problem:" in the latest user message)
+    # - classifier profile_updates (problem_understood/problem_raw)
+    problems_identified = base_problems
+    if extracted.get("problem_raw"):
+        problems_identified = _append_unique_problem(problems_identified, str(extracted["problem_raw"]))
+    for key in ("problem_understood", "problem_raw"):
+        v = profile_updates.get(key)
+        if isinstance(v, str) and v.strip():
+            problems_identified = _append_unique_problem(problems_identified, v)
+
     # Safe fallback for manipulation/prompt-injection attempts.
     # We intentionally do not let any sales agent generate a response in this case.
     manipulation_safe_fallback = (
@@ -297,6 +330,7 @@ async def orchestrator_node(state: ConversationState) -> dict:
         "conversation_stage": updated_stage,
         "agent_mode": agent_mode,
         "client_profile": merged_profile,
+        "problems_identified": problems_identified,
         "lead_temperature": lead_temperature,
         "session_token_usage": session_token_usage,
         "last_call_token_usage": last_call_token_usage,

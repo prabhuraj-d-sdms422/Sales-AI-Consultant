@@ -43,18 +43,43 @@ def _build_note_html(state: ConversationState) -> str:
         or profile.get("problem_raw")
         or ""
     )
+    insights = state.get("conversation_insights") or {}
+    all_problems = list(insights.get("all_problems") or state.get("problems_identified") or [])
+    all_solutions = list(insights.get("all_solutions") or state.get("solutions_discussed") or [])
+    key_metrics = list(insights.get("key_metrics") or [])
+    client_context = str(insights.get("client_context") or "")
+
     solutions = ", ".join(state.get("solutions_discussed", []) or [])
     session_id = str(state.get("session_id", "") or "")
-    lines = [
-        ("Session ID", session_id),
-        ("Problem / context", str(problem)),
-        ("Solutions discussed", solutions),
-    ]
-    parts = []
-    for label, value in lines:
+    parts: list[str] = []
+
+    def _p(label: str, value: object) -> None:
         esc_label = html.escape(label)
-        esc_val = html.escape(str(value))
+        esc_val = html.escape(str(value or ""))
         parts.append(f"<p><strong>{esc_label}</strong><br/>{esc_val}</p>")
+
+    _p("Session ID", session_id)
+    _p("Problem / context", str(problem))
+    _p("Solutions discussed", solutions)
+
+    if client_context.strip():
+        _p("Client context (summary)", client_context.strip())
+
+    if all_problems:
+        items = "".join(f"<li>{html.escape(str(x))}</li>" for x in all_problems if str(x).strip())
+        if items:
+            parts.append(f"<p><strong>Problems identified</strong></p><ol>{items}</ol>")
+
+    if all_solutions:
+        items = "".join(f"<li>{html.escape(str(x))}</li>" for x in all_solutions if str(x).strip())
+        if items:
+            parts.append(f"<p><strong>Solutions proposed</strong></p><ol>{items}</ol>")
+
+    if key_metrics:
+        items = "".join(f"<li>{html.escape(str(x))}</li>" for x in key_metrics if str(x).strip())
+        if items:
+            parts.append(f"<p><strong>Key metrics / facts</strong></p><ul>{items}</ul>")
+
     return "\n".join(parts)
 
 

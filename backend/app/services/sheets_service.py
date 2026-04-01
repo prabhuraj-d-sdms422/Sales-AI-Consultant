@@ -15,7 +15,7 @@ from app.config.settings import settings
 from app.models.state import ConversationState
 
 EXCEL_PATH = "data/leads.xlsx"
-OLD_HEADERS = [
+OLD_HEADERS_V1 = [
     "Timestamp",
     "Lead Temp",
     "Name",
@@ -31,6 +31,24 @@ OLD_HEADERS = [
     "Objections Raised",
     "Stage",
     "Session ID",
+]
+OLD_HEADERS_V2 = [
+    "Timestamp",
+    "Lead Temp",
+    "Name",
+    "Company",
+    "Email",
+    "Phone",
+    "Industry",
+    "Problem",
+    "Budget Signal",
+    "Urgency",
+    "Decision Maker",
+    "Solutions Discussed",
+    "Objections Raised",
+    "Stage",
+    "Session ID",
+    "HubSpot URL",
 ]
 HEADERS = [
     "Timestamp",
@@ -49,11 +67,20 @@ HEADERS = [
     "Stage",
     "Session ID",
     "HubSpot URL",
+    "All Problems",
+    "All Solutions",
+    "Key Metrics",
+    "Client Context",
 ]
 
 
 def _build_row(state: ConversationState) -> list[str]:
     profile = state.get("client_profile", {}) or {}
+    insights = state.get("conversation_insights") or {}
+    all_problems = list(insights.get("all_problems") or state.get("problems_identified") or [])
+    all_solutions = list(insights.get("all_solutions") or state.get("solutions_discussed") or [])
+    key_metrics = list(insights.get("key_metrics") or [])
+    client_context = str(insights.get("client_context") or "")
     return [
         datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         str(state.get("lead_temperature", "cold")).upper(),
@@ -71,6 +98,10 @@ def _build_row(state: ConversationState) -> list[str]:
         str(state.get("conversation_stage", "") or ""),
         str(state.get("session_id", "") or ""),
         str(state.get("hubspot_contact_url", "") or ""),
+        " | ".join(str(x) for x in all_problems if str(x).strip()),
+        " | ".join(str(x) for x in all_solutions if str(x).strip()),
+        " | ".join(str(x) for x in key_metrics if str(x).strip()),
+        client_context.strip(),
     ]
 
 
@@ -81,10 +112,10 @@ async def append_lead_locally(state: ConversationState) -> None:
     if os.path.exists(EXCEL_PATH):
         wb = load_workbook(EXCEL_PATH)
         ws = wb.active
-        # Auto-upgrade headers for existing workbooks created before HubSpot URL column existed.
+        # Auto-upgrade headers for existing workbooks created before new columns existed.
         try:
             existing = [c.value for c in ws[1] if c.value is not None]
-            if existing == OLD_HEADERS:
+            if existing == OLD_HEADERS_V1 or existing == OLD_HEADERS_V2:
                 for col_idx, header in enumerate(HEADERS, start=1):
                     ws.cell(row=1, column=col_idx, value=header)
         except Exception:
@@ -148,7 +179,7 @@ def _append_google_sheet_sync(row: list[str]) -> None:
         # Only overwrite row 1 when it exactly matches the previous header set.
         try:
             row1 = [str(x) for x in (existing[0] or [])]
-            if row1 == OLD_HEADERS:
+            if row1 == OLD_HEADERS_V1 or row1 == OLD_HEADERS_V2:
                 service.spreadsheets().values().update(
                     spreadsheetId=settings.google_sheets_spreadsheet_id,
                     range=f"{sheet}!A1",

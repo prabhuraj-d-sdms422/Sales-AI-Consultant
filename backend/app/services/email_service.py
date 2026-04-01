@@ -24,6 +24,8 @@ async def save_lead_locally(state: ConversationState) -> None:
         "conversation_stage": state.get("conversation_stage"),
         "client_profile": profile,
         "solutions_discussed": state.get("solutions_discussed", []),
+        "problems_identified": state.get("problems_identified", []) or [],
+        "conversation_insights": state.get("conversation_insights") or {},
         "objections_raised": state.get("objections_raised", []),
         "escalation_requested": state.get("escalation_requested", False),
         "hubspot_contact_url": state.get("hubspot_contact_url", "") or "",
@@ -37,6 +39,11 @@ def _lead_notification_bodies(state: ConversationState) -> tuple[str, str]:
     """Plain text and HTML bodies for the sales notification."""
     profile = dict(state.get("client_profile") or {})
     session_id = state.get("session_id", "")
+    insights = state.get("conversation_insights") or {}
+    all_problems = list(insights.get("all_problems") or state.get("problems_identified") or [])
+    all_solutions = list(insights.get("all_solutions") or state.get("solutions_discussed") or [])
+    key_metrics = list(insights.get("key_metrics") or [])
+    client_context = str(insights.get("client_context") or "")
 
     def esc(s: object) -> str:
         return html.escape(str(s) if s is not None else "")
@@ -53,9 +60,13 @@ def _lead_notification_bodies(state: ConversationState) -> tuple[str, str]:
         ("Phone", profile.get("phone", "")),
         ("Industry", profile.get("industry", "")),
         ("Problem", profile.get("problem_understood") or profile.get("problem_raw", "")),
+        ("All problems", " | ".join(str(x) for x in all_problems if str(x).strip())),
         ("Budget signal", profile.get("budget_signal", "")),
         ("Urgency", profile.get("urgency", "")),
         ("Solutions discussed", ", ".join(state.get("solutions_discussed", []) or [])),
+        ("All solutions", " | ".join(str(x) for x in all_solutions if str(x).strip())),
+        ("Key metrics", " | ".join(str(x) for x in key_metrics if str(x).strip())),
+        ("Client context", client_context.strip()),
         ("Objections raised", ", ".join(state.get("objections_raised", []) or [])),
         ("HubSpot", state.get("hubspot_contact_url", "") or ""),
     ]

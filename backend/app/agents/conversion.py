@@ -43,17 +43,45 @@ async def _trigger_lead_delivery(state: ConversationState) -> None:
 
     delivery_state: ConversationState = dict(state)
 
-    # Best-effort enrichment so Sheets/HubSpot/Email always have short problem/solution summaries
-    # even when the user doesn't type "Problem:" labels or routing doesn't hit solution_advisor.
+    def _norm(s: object) -> str:
+        return " ".join(str(s or "").strip().split())
+
+    def _append_unique(items: list[str] | None, new_item: object) -> list[str]:
+        out = list(items or [])
+        v = _norm(new_item)
+        if not v:
+            return out
+        v_l = v.lower()
+        for e in out:
+            if _norm(e).lower() == v_l:
+                return out
+        out.append(v)
+        return out
+
+    # Best-effort enrichment so Sheets/HubSpot/Email always have ALL problems/solutions/metrics,
+    # even when routing/labels vary or the user introduces multiple issues mid-session.
     enrichment = await enrich_lead_from_conversation_safe(delivery_state)
+    delivery_state["conversation_insights"] = enrichment
+
     profile = dict(delivery_state.get("client_profile") or {})
-    if enrichment.get("problem_summary") and not (profile.get("problem_understood") or profile.get("problem_raw")):
-        profile["problem_understood"] = enrichment["problem_summary"]
+    all_problems = list(enrichment.get("all_problems") or [])
+    all_solutions = list(enrichment.get("all_solutions") or [])
+
+    # Keep backward-compatible single "Problem" field populated (use first known problem).
+    if all_problems and not (profile.get("problem_understood") or profile.get("problem_raw")):
+        profile["problem_understood"] = str(all_problems[0])
     delivery_state["client_profile"] = profile
-    if enrichment.get("solutions_summary"):
-        existing = list(delivery_state.get("solutions_discussed") or [])
-        if not existing:
-            delivery_state["solutions_discussed"] = [enrichment["solutions_summary"]]
+
+    # Ensure we accumulate all problems in the lead payload (state-level list).
+    problems_identified = list(delivery_state.get("problems_identified") or [])
+    for p in all_problems:
+        problems_identified = _append_unique(problems_identified, p)
+    delivery_state["problems_identified"] = problems_identified
+
+    # Ensure solutions_discussed is populated even if solution_advisor wasn't called.
+    existing = list(delivery_state.get("solutions_discussed") or [])
+    if not existing and all_solutions:
+        delivery_state["solutions_discussed"] = [_norm(x) for x in all_solutions if _norm(x)]
 
     hubspot_url = await sync_lead_to_hubspot_safe(delivery_state) or ""
     if hubspot_url:

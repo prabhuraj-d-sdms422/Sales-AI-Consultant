@@ -1,4 +1,4 @@
-from typing import Annotated, NotRequired, Optional, TypedDict
+from typing import Annotated, NotRequired, Optional, TypedDict, Any
 
 from langgraph.graph.message import add_messages
 
@@ -50,6 +50,12 @@ class ConversationState(TypedDict):
 
     # Set when HubSpot sync succeeds during lead delivery
     hubspot_contact_url: NotRequired[str]
+
+    # Accumulated issues discussed across the session (multi-problem support)
+    problems_identified: NotRequired[list[str]]
+
+    # Best-effort structured insights extracted from transcript at lead delivery time
+    conversation_insights: NotRequired[dict[str, Any]]
 
     # Sources / provenance per assistant answer (optional; additive)
     last_answer_sources: NotRequired[list[dict]]
