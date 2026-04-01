@@ -8,7 +8,7 @@ import TokenUsagePanel from "./TokenUsagePanel.jsx";
 export default function ChatWidget() {
   const [sessionId, setSessionId] = useState(null);
   const [input, setInput] = useState("");
-  const { messages, streamingText, isTyping, tokenUsage, error, sendMessage } =
+  const { messages, streamingText, isTyping, tokenUsage, lastSources, error, sendMessage } =
     useChat(sessionId);
   const listRef = useRef(null);
 
@@ -73,6 +73,31 @@ export default function ChatWidget() {
         {isTyping && streamingText && (
           <MessageBubble role="assistant">{streamingText}</MessageBubble>
         )}
+        {!isTyping && lastSources?.sources?.length ? (
+          <div className="px-2">
+            <details className="text-xs text-slate-400">
+              <summary className="cursor-pointer select-none">
+                Sources ({lastSources.sources.length}) — {lastSources.agent || "assistant"}
+              </summary>
+              <div className="mt-2 space-y-2">
+                {lastSources.sources.map((s, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
+                  >
+                    <div className="text-slate-300">
+                      {s.solution_name || s.problem_title || s.id || "match"}
+                    </div>
+                    <div className="text-slate-500">
+                      {(s.namespace ? `${s.namespace} • ` : "")}
+                      {(typeof s.score === "number" ? `score ${s.score.toFixed(2)}` : "")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+        ) : null}
         {isTyping && !streamingText && (
           <MessageBubble role="assistant">
             <TypingIndicator />

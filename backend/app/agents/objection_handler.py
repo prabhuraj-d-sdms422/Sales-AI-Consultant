@@ -69,6 +69,7 @@ async def objection_handler_node(state: ConversationState) -> dict:
         "current_agent": "objection_handler",
         "conversation_stage": "OBJECTION",
         "should_stream": True,
+        "last_answer_sources": [],
         "session_token_usage": session_token_usage,
         "last_call_token_usage": {"provider": provider, "model": model, **usage},
     }

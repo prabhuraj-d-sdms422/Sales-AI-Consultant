@@ -1,4 +1,4 @@
-from typing import Annotated, Optional, TypedDict
+from typing import Annotated, NotRequired, Optional, TypedDict
 
 from langgraph.graph.message import add_messages
 
@@ -47,3 +47,10 @@ class ConversationState(TypedDict):
     # Stored in Redis and optionally archived to backend/data/Conversations/*.json
     session_token_usage: dict
     last_call_token_usage: dict
+
+    # Set when HubSpot sync succeeds during lead delivery
+    hubspot_contact_url: NotRequired[str]
+
+    # Sources / provenance per assistant answer (optional; additive)
+    last_answer_sources: NotRequired[list[dict]]
+    answer_sources: NotRequired[list[dict]]

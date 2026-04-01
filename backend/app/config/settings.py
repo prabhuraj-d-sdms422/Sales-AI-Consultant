@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import ClassVar, Literal
 
-from pydantic import field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -67,6 +67,16 @@ class Settings(BaseSettings):
     sendgrid_from_name: str = "Stark Digital AI Sales Consultant"
     sendgrid_to_email: str = ""  # comma-separated recipient addresses
     sendgrid_sandbox_mode: bool = False  # True = SendGrid accepts but does not deliver (testing)
+
+    # HubSpot CRM — optional; Private App access token (not OAuth in .env for server-side)
+    hubspot_enabled: bool = False
+    hubspot_access_token: str = ""
+    # Portal / Hub ID from your HubSpot URL: app.hubspot.com/contacts/<PORTAL>/...
+    # Accept a common typo too (UBSPOT_PORTAL_ID) so prod doesn't silently miss links.
+    hubspot_portal_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("HUBSPOT_PORTAL_ID", "UBSPOT_PORTAL_ID"),
+    )
 
     # Identity
     consultant_name: str = "Alex"

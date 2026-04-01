@@ -71,6 +71,7 @@ async def discovery_node(state: ConversationState) -> dict:
         "client_profile": profile,
         "current_agent": "discovery",
         "should_stream": True,
+        "last_answer_sources": [],
         "session_token_usage": session_token_usage,
         "last_call_token_usage": {"provider": provider, "model": model, **usage},
     }

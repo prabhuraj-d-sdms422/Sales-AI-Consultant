@@ -15,7 +15,7 @@ continues normally on LLM general knowledge.
 
 import logging
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Optional, TypedDict
 
 from app.config.settings import settings
 
@@ -204,17 +204,65 @@ async def get_industry_context(
     Tier preference: S1 (Best Performance) matches surface first; then other
     tiers fill remaining slots up to `top_k`.
     """
+    ctx, _sources = await get_industry_context_with_sources(
+        query_text=query_text,
+        namespace=namespace,
+        top_k=top_k,
+        threshold=threshold,
+    )
+    return ctx
+
+
+class RAGSource(TypedDict, total=False):
+    id: str
+    score: float
+    namespace: str
+    problem_title: str
+    subcategory: str
+    solution_tier_code: str
+    tier_label: str
+    solution_name: str
+    outcome: str
+    tech_stack: str
+
+
+def _source_from_match(match: dict[str, Any], namespace: str) -> RAGSource:
+    md = match.get("metadata") or {}
+    return {
+        "id": str(match.get("id") or ""),
+        "score": float(match.get("score") or 0.0),
+        "namespace": str(namespace),
+        "problem_title": str(md.get("problem_title") or ""),
+        "subcategory": str(md.get("subcategory") or ""),
+        "solution_tier_code": str(md.get("solution_tier_code") or ""),
+        "tier_label": str(md.get("tier_label") or ""),
+        "solution_name": str(md.get("solution_name") or ""),
+        "outcome": str(md.get("outcome") or ""),
+        "tech_stack": str(md.get("tech_stack") or ""),
+    }
+
+
+async def get_industry_context_with_sources(
+    query_text: str,
+    namespace: str,
+    top_k: int = 3,
+    threshold: float = 0.70,
+) -> tuple[Optional[str], list[RAGSource]]:
+    """
+    Same as get_industry_context(), but also returns structured source metadata
+    for each match (ids/scores + key metadata fields).
+    """
     if not query_text or not query_text.strip():
-        return None
+        return None, []
 
     try:
         model = _get_embed_model()
         if model is None:
-            return None
+            return None, []
 
         index = _get_pinecone_index()
         if index is None:
-            return None
+            return None, []
 
         # Embed synchronously — SentenceTransformer is CPU-bound, ~5-20 ms
         vector: list[float] = model.encode(query_text).tolist()
@@ -235,7 +283,7 @@ async def get_industry_context(
             logger.debug(
                 "RAG: no matches above %.2f in namespace '%s'.", threshold, namespace
             )
-            return None
+            return None, []
 
         # Prefer S1 tier first, then fill remaining slots from other tiers
         s1 = [
@@ -246,7 +294,7 @@ async def get_industry_context(
         ordered = (s1 + others)[:top_k]
 
         if not ordered:
-            return None
+            return None, []
 
         label = _namespace_label(namespace)
         header = (
@@ -257,7 +305,8 @@ async def get_industry_context(
             "Do NOT copy verbatim — synthesise and personalise based on their specific problem.\n"
         )
         blocks = [_format_match(m, i + 1) for i, m in enumerate(ordered)]
-        return header + "\n" + "\n\n".join(blocks)
+        sources = [_source_from_match(m, namespace=namespace) for m in ordered]
+        return header + "\n" + "\n\n".join(blocks), sources
 
     except Exception:
         logger.exception(
@@ -265,4 +314,4 @@ async def get_industry_context(
             "falling back to LLM general knowledge.",
             namespace,
         )
-        return None
+        return None, []
