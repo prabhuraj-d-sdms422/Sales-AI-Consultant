@@ -9,11 +9,7 @@ from app.prompts.conversion_prompt import CONVERSION_PROMPT, ESCALATION_PROMPT
 from app.prompts.solution_advisor_prompt import _format_profile
 from app.services.email_service import notify_sales_lead_captured, save_lead_locally
 from app.services.lead_service import persist_lead_incrementally
-<<<<<<< HEAD
-from app.services.sheets_service import append_lead_locally
-=======
 from app.services.sheets_service import append_lead_google_sheets, append_lead_locally
->>>>>>> 770e60e75d3d52bd3d84e6e96e998281acaa4a5c
 from app.services.token_cost_service import (
     add_usage_totals,
     extract_token_usage_from_message,
