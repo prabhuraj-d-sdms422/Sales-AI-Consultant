@@ -299,9 +299,11 @@ async def get_industry_context_with_sources(
         label = _namespace_label(namespace)
         header = (
             f"## STARK DIGITAL {label} KNOWLEDGE BASE\n"
-            "The following are verified, deliverable solutions from Stark Digital's "
+            "The following are documented solution approaches and implementation patterns from Stark Digital's "
             f"{label.lower()} portfolio. Use these as your primary reference when recommending "
             "solutions to this client. Present in the client's language and tone.\n"
+            "If example numbers/outcomes are included in the records, treat them as expected benchmarks based on similar implementations, "
+            "not already-achieved results for this client.\n"
             "Do NOT copy verbatim — synthesise and personalise based on their specific problem.\n"
         )
         blocks = [_format_match(m, i + 1) for i, m in enumerate(ordered)]

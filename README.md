@@ -2,6 +2,18 @@
 
 V1 implementation per **AI_Sales_Consultant_Cursor_Plan_v5**: multi-agent **LangGraph** sales flow, **FastAPI** + **SSE** streaming, **Redis** session state, leads in **local JSON** + **Excel** (`openpyxl`). No PostgreSQL / SendGrid / Google Sheets / Calendly in V1.
 
+## Recent changes (behavior updates)
+
+- **Use case 1 (capability phrasing)**: responses are framed as **“we can build …”** (not “we have built …”) to avoid implying solutions are already delivered.
+  - Prompt updates: `backend/app/prompts/solution_advisor_prompt.py`
+  - RAG header wording updates: `backend/app/services/rag_service.py`
+  - Output enforcement (deterministic rewrite): `backend/app/guardrails/output_guardrail.py`
+- **Use case 2 (pending)**: plan to allow **“we have built / delivered …”** only when delivery is evidenced (e.g., via KB metadata). Tracked in:
+  - `Documents/use-case-2-pending-delivery-claims.md`
+- **Shorter, crisper answers**: prompt limits were tightened and an output “brevity clamp” was added to keep answers concise while preserving a complete, readable response.
+  - Prompt updates: `backend/app/prompts/solution_advisor_prompt.py`, `backend/app/prompts/discovery_prompt.py`
+  - Brevity clamp (deterministic, sentence-aware): `backend/app/guardrails/output_guardrail.py`
+
 ## What you’re building
 
 - **Orchestrator**: intent + routing (no user-facing text).
