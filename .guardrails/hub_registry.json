@@ -6,7 +6,7 @@
       "exports": [
         "ToxicLanguage"
       ],
-      "installed_at": "2026-03-30T07:06:48.820715+00:00",
+      "installed_at": "2026-04-06T07:25:16.331204+00:00",
       "package_name": "guardrails-grhub-toxic-language"
     },
     "guardrails/detect_jailbreak": {
@@ -14,7 +14,7 @@
       "exports": [
         "DetectJailbreak"
       ],
-      "installed_at": "2026-03-30T07:07:07.465865+00:00",
+      "installed_at": "2026-04-06T07:25:40.963181+00:00",
       "package_name": "guardrails-grhub-detect-jailbreak"
     },
     "guardrails/competitor_check": {
@@ -22,7 +22,7 @@
       "exports": [
         "CompetitorCheck"
       ],
-      "installed_at": "2026-03-30T07:07:22.130056+00:00",
+      "installed_at": "2026-04-06T07:27:12.190415+00:00",
       "package_name": "guardrails-grhub-competitor-check"
     }
   }

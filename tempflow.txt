@@ -1,0 +1,33 @@
+🟢 Step 1 — Entry (vague problem)
+Hi, we run a clinic and we are facing some issues managing our patients.
+
+🟢 Step 2 — Add context
+We get a lot of patient inquiries, but managing appointments and follow-ups is becoming very difficult.
+
+🟢 Step 3 — Pain point
+Many patients miss their appointments, and our staff has to manually call everyone which takes a lot of time.
+
+🟢 Step 4 — Business details
+We are a multi-specialty clinic with around 10 doctors.
+
+🟢 Step 5 — Current system
+Currently we are using phone calls and a basic register to manage everything.
+
+🟢 Step 6 — Trigger solution
+Can you suggest what we can do to improve this?
+
+Step 7 — Cost concern
+This sounds like it might be expensive for us.
+
+Step 8 — Usability concern
+Also, our staff is not very tech-savvy, they might find it difficult.
+
+Step 9 — Interest
+Okay, this could actually help us. How do we get started?
+
+Step 10 — Lead info
+My name is Dr. Mehta. I run CarePlus Clinic in Mumbai.
+You can contact me at drmehta@careplus.com     
+
+Step 11 — Escalation trigger
+Can someone from your team call me and explain this in detail?

@@ -13,6 +13,7 @@ V1 implementation per **AI_Sales_Consultant_Cursor_Plan_v5**: multi-agent **Lang
 - **Shorter, crisper answers**: prompt limits were tightened and an output “brevity clamp” was added to keep answers concise while preserving a complete, readable response.
   - Prompt updates: `backend/app/prompts/solution_advisor_prompt.py`, `backend/app/prompts/discovery_prompt.py`
   - Brevity clamp (deterministic, sentence-aware): `backend/app/guardrails/output_guardrail.py`
+- **Avoid mid-word cut-offs**: the default **output token budget** (`LLM_MAX_TOKENS`, default **4096** in `backend/app/config/settings.py`) was raised so the model can finish long sales replies. If replies still truncate, increase `LLM_MAX_TOKENS` in `.env` and restart the backend.
 
 ## What you’re building
 

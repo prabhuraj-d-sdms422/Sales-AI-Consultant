@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     llm_temperature: float = 0.3
-    llm_max_tokens: int = 1000
+    # Max *generated* tokens per model call. Too low → replies stop mid-sentence/word.
+    # Override with LLM_MAX_TOKENS in .env (e.g. 4096 for long solution-advisor turns).
+    llm_max_tokens: int = 4096
     llm_streaming: bool = True
 
     # Pricing / cost estimation
