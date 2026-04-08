@@ -65,7 +65,7 @@ async def save_profile(payload: SaveProfileRequest):
         raise HTTPException(status_code=404, detail="Session not found")
 
     profile = dict(state.get("client_profile") or {})
-    for k in ("name", "email", "phone"):
+    for k in ("name", "email", "phone", "location"):
         v = getattr(payload, k, None)
         if v is None:
             continue

@@ -8,6 +8,7 @@ class ClientProfile(TypedDict, total=False):
     company: Optional[str]
     email: Optional[str]
     phone: Optional[str]
+    location: Optional[str]
     industry: Optional[str]
     problem_raw: Optional[str]
     problem_understood: Optional[str]

@@ -38,6 +38,7 @@ def _contact_record_url(contact_id: str) -> str | None:
 
 def _build_note_html(state: ConversationState) -> str:
     profile = dict(state.get("client_profile") or {})
+    location = str(profile.get("location") or "").strip()
     problem = (
         profile.get("problem_understood")
         or profile.get("problem_raw")
@@ -59,6 +60,8 @@ def _build_note_html(state: ConversationState) -> str:
         parts.append(f"<p><strong>{esc_label}</strong><br/>{esc_val}</p>")
 
     _p("Session ID", session_id)
+    if location:
+        _p("Location", location)
     _p("Problem / context", str(problem))
     _p("Solutions discussed", solutions)
 
@@ -215,6 +218,7 @@ async def sync_lead_to_hubspot(state: ConversationState) -> str | None:
     phone = (profile.get("phone") or "").strip()
     name = (profile.get("name") or "").strip()
     company = (profile.get("company") or "").strip()
+    location = (profile.get("location") or "").strip()
 
     if not email and not phone:
         logger.info(
@@ -237,6 +241,9 @@ async def sync_lead_to_hubspot(state: ConversationState) -> str | None:
         properties["email"] = email
     if phone:
         properties["phone"] = phone
+    # Best-effort mapping; "city" is a standard HubSpot field but may not fit all formats.
+    if location:
+        properties["city"] = location
 
     note_html = _build_note_html(state)
 

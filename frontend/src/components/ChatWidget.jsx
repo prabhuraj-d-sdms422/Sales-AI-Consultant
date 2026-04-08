@@ -46,7 +46,7 @@ export default function ChatWidget() {
   const [timings, setTimings] = useState({ promptMin: 10, endMin: 20 });
   const [showIdlePrompt, setShowIdlePrompt] = useState(false);
   const [formShown, setFormShown] = useState(false);
-  const [contactForm, setContactForm] = useState({ name: "", email: "", phone: "" });
+  const [contactForm, setContactForm] = useState({ name: "", email: "", phone: "", location: "" });
 
   const { messages, streamingText, isTyping, tokenUsage, lastSources, error, sendMessage } =
     useChat(sessionId, setSessionId);
@@ -293,12 +293,19 @@ export default function ChatWidget() {
     !formShown &&
     messages.some((m) => m.role === "assistant" && (m.content || "").trim());
 
+  const contactFormComplete =
+    (contactForm.name || "").trim() &&
+    (contactForm.email || "").trim() &&
+    (contactForm.phone || "").trim() &&
+    (contactForm.location || "").trim();
+
   const submitContactForm = async () => {
     try {
       const payload = {
         name: (contactForm.name || "").trim() || null,
         email: (contactForm.email || "").trim() || null,
         phone: (contactForm.phone || "").trim() || null,
+        location: (contactForm.location || "").trim() || null,
       };
       await saveProfile(sessionId, payload);
     } catch {
@@ -374,21 +381,21 @@ export default function ChatWidget() {
                 placeholder="Phone"
                 className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
               />
+              <input
+                value={contactForm.location}
+                onChange={(e) => setContactForm((p) => ({ ...p, location: e.target.value }))}
+                placeholder="Location"
+                className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+              />
             </div>
             <div className="mt-3 flex gap-2">
               <button
                 type="button"
                 onClick={submitContactForm}
+                disabled={!contactFormComplete}
                 className="rounded-xl bg-stark-blue hover:bg-blue-600 text-white px-4 py-2 text-sm font-medium"
               >
                 Submit
-              </button>
-              <button
-                type="button"
-                onClick={markFormShown}
-                className="rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-slate-200 px-4 py-2 text-sm font-medium"
-              >
-                Skip
               </button>
             </div>
           </div>
@@ -469,13 +476,13 @@ export default function ChatWidget() {
             placeholder={sessionId ? "Message" : "Connecting…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={!sessionId || isTyping || ended}
+            disabled={!sessionId || isTyping || ended || shouldShowContactForm}
             rows={1}
             onKeyDown={(e) => {
               if (e.key !== "Enter") return;
               if (e.shiftKey) return; // allow newline with Shift+Enter
               e.preventDefault();
-              if (!input.trim() || !sessionId || isTyping || ended) return;
+              if (!input.trim() || !sessionId || isTyping || ended || shouldShowContactForm) return;
               const t = input;
               setInput("");
               lastActivityRef.current = Date.now();
@@ -486,7 +493,7 @@ export default function ChatWidget() {
           />
           <button
             type="submit"
-            disabled={!sessionId || isTyping || !input.trim() || ended}
+            disabled={!sessionId || isTyping || !input.trim() || ended || shouldShowContactForm}
             className="rounded-xl bg-stark-blue hover:bg-blue-600 disabled:opacity-40 text-white px-4 py-2 text-sm font-medium"
           >
             Send

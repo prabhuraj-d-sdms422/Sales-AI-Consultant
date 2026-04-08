@@ -58,6 +58,7 @@ def _lead_notification_bodies(state: ConversationState) -> tuple[str, str]:
         ("Company", profile.get("company", "")),
         ("Email", profile.get("email", "")),
         ("Phone", profile.get("phone", "")),
+        ("Location", profile.get("location", "")),
         ("Industry", profile.get("industry", "")),
         ("Problem", profile.get("problem_understood") or profile.get("problem_raw", "")),
         ("All problems", " | ".join(str(x) for x in all_problems if str(x).strip())),

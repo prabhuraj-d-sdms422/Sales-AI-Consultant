@@ -3,6 +3,7 @@ import { createSession, getApiBase } from "../utils/api.js";
 
 const CHAT_MESSAGES_KEY = "stark.chat.messages";
 const CHAT_SESSION_ID_KEY = "stark.chat.sessionId";
+const DEFAULT_GREETING = "Hi — I’m Stark Digital’s AI Sales Consultant. How can I help today?";
 
 export function useChat(sessionId, setSessionId) {
   const [messages, setMessages] = useState([]);
@@ -19,12 +20,16 @@ export function useChat(sessionId, setSessionId) {
     if (messages.length) return;
     try {
       const raw = window.sessionStorage.getItem(CHAT_MESSAGES_KEY);
-      if (!raw) return;
+      if (!raw) {
+        setMessages([{ role: "assistant", content: DEFAULT_GREETING }]);
+        return;
+      }
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return;
       setMessages(parsed);
     } catch {
-      // ignore unreadable storage
+      // If storage is unreadable (corrupt/quota), fall back to a clean greeting.
+      setMessages([{ role: "assistant", content: DEFAULT_GREETING }]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);

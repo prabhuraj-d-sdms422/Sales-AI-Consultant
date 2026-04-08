@@ -49,6 +49,7 @@ describe("useChat sessionStorage persistence", () => {
     await waitFor(() => {
       const stored = JSON.parse(sessionStorage.getItem("stark.chat.messages") || "null");
       expect(stored).toEqual([
+        { role: "assistant", content: "Hi — I’m Stark Digital’s AI Sales Consultant. How can I help today?" },
         { role: "user", content: "Hi" },
         { role: "assistant", content: "" },
       ]);

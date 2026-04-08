@@ -15,6 +15,7 @@ class SaveProfileRequest(BaseModel):
     name: str | None = None
     email: str | None = None
     phone: str | None = None
+    location: str | None = None
 
 
 class OkResponse(BaseModel):
