@@ -87,6 +87,11 @@ class Settings(BaseSettings):
     session_timeout_minutes: int = 30
     save_conversations_enabled: bool = False
 
+    # Public base URL of this server — used to build conversation viewer links
+    # in emails, Google Sheets, and HubSpot notes.
+    # Set to your deployed domain in production, e.g. https://api.yourdomain.com
+    app_base_url: str = "http://localhost:8000"
+
     # Inactivity UX (frontend timers; backend sweep uses session_timeout_minutes)
     inactivity_prompt_minutes: int = Field(
         default=10,

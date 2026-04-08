@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.middleware import RateLimitMiddleware
-from app.api.routes import chat, health, session
+from app.api.routes import chat, conversation_viewer, health, session
 from app.config.settings import settings
 from app.db.redis_client import init_redis
 from app.services.lead_delivery_service import end_session_and_maybe_deliver
@@ -83,3 +83,4 @@ app.add_middleware(RateLimitMiddleware)
 app.include_router(health.router)
 app.include_router(session.router, prefix="/session")
 app.include_router(chat.router, prefix="/chat")
+app.include_router(conversation_viewer.router)

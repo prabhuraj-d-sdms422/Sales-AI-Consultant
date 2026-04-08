@@ -1,12 +1,17 @@
 import logging
 from datetime import datetime
+from pathlib import Path
 
+from app.config.settings import settings
 from app.db.redis_client import get_redis
 from app.models.state import ConversationState
+from app.services.conversation_archive_service import save_session_conversation
 from app.services.email_service import notify_sales_lead_captured, save_lead_locally
 from app.services.hubspot_service import sync_lead_to_hubspot_safe
 from app.services.lead_enrichment_service import enrich_lead_from_conversation_safe
 from app.services.sheets_service import append_lead_google_sheets, append_lead_locally
+
+CONVERSATIONS_DIR = Path(settings.repo_root) / "backend" / "data" / "Conversations"
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +65,26 @@ async def trigger_lead_delivery(state: ConversationState) -> ConversationState:
     """
     session_id = str(state.get("session_id") or "")
     delivery_state: ConversationState = dict(state)
+
+    # ── Conversation viewer URL ────────────────────────────────────────────
+    base_url = settings.app_base_url.rstrip("/")
+    conversation_viewer_url = f"{base_url}/conversation/{session_id}"
+    delivery_state["conversation_viewer_url"] = conversation_viewer_url
+
+    # Ensure the conversation JSON file exists for the viewer, even when
+    # SAVE_CONVERSATIONS_ENABLED is False (the file is always needed for links).
+    try:
+        conv_file = CONVERSATIONS_DIR / f"{session_id}.json"
+        if not conv_file.exists():
+            messages = delivery_state.get("messages") or []
+            if messages:
+                await save_session_conversation(
+                    session_id,
+                    messages,
+                    token_usage=delivery_state.get("session_token_usage"),
+                )
+    except Exception as e:
+        logger.warning("Could not save conversation archive for viewer | session=%s | err=%s", session_id, e)
 
     # ── Enrichment ────────────────────────────────────────────────
     enrichment = await enrich_lead_from_conversation_safe(delivery_state)

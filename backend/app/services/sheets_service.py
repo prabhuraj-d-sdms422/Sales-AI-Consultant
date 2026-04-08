@@ -50,7 +50,7 @@ OLD_HEADERS_V2 = [
     "Session ID",
     "HubSpot URL",
 ]
-HEADERS = [
+OLD_HEADERS_V3 = [
     "Timestamp",
     "Lead Temp",
     "Name",
@@ -73,6 +73,48 @@ HEADERS = [
     "Key Metrics",
     "Client Context",
 ]
+HEADERS = [
+    "Timestamp",
+    "Lead Temp",
+    "Name",
+    "Company",
+    "Email",
+    "Phone",
+    "Location",
+    "Industry",
+    "Problem",
+    "Budget Signal",
+    "Urgency",
+    "Decision Maker",
+    "Solutions Discussed",
+    "Objections Raised",
+    "Stage",
+    "Session ID",
+    "HubSpot URL",
+    "All Problems",
+    "All Solutions",
+    "Key Metrics",
+    "Client Context",
+    "Conversation Link",
+]
+
+
+def _should_upgrade_headers(existing: list[object]) -> bool:
+    """
+    Upgrade when the sheet looks like our lead tracker but headers are stale/misaligned.
+    We intentionally avoid strict equality checks because real-world trackers often end up
+    with partial upgrades (e.g. missing columns, trailing empty cells).
+    """
+    norm = [str(x).strip() if x is not None else "" for x in (existing or [])]
+    norm = (norm + [""] * len(HEADERS))[: len(HEADERS)]
+
+    # Strong signature for "our" sheet.
+    if norm[:3] != HEADERS[:3]:
+        return False
+    # Already correct
+    if norm == HEADERS:
+        return False
+    return True
 
 
 def _build_row(state: ConversationState) -> list[str]:
@@ -104,6 +146,7 @@ def _build_row(state: ConversationState) -> list[str]:
         " | ".join(str(x) for x in all_solutions if str(x).strip()),
         " | ".join(str(x) for x in key_metrics if str(x).strip()),
         client_context.strip(),
+        str(state.get("conversation_viewer_url", "") or ""),
     ]
 
 
@@ -114,10 +157,15 @@ async def append_lead_locally(state: ConversationState) -> None:
     if os.path.exists(EXCEL_PATH):
         wb = load_workbook(EXCEL_PATH)
         ws = wb.active
-        # Auto-upgrade headers for existing workbooks created before new columns existed.
+        # Auto-upgrade headers for existing workbooks created before new columns existed
+        # or for trackers that ended up partially upgraded (misaligned columns).
         try:
-            existing = [c.value for c in ws[1] if c.value is not None]
-            if existing == OLD_HEADERS_V1 or existing == OLD_HEADERS_V2:
+            existing = [ws.cell(row=1, column=i).value for i in range(1, len(HEADERS) + 1)]
+            if _should_upgrade_headers(existing) or [c for c in existing if c is not None] in (
+                OLD_HEADERS_V1,
+                OLD_HEADERS_V2,
+                OLD_HEADERS_V3,
+            ):
                 for col_idx, header in enumerate(HEADERS, start=1):
                     ws.cell(row=1, column=col_idx, value=header)
         except Exception:
@@ -177,11 +225,15 @@ def _append_google_sheet_sync(row: list[str]) -> None:
             body={"values": [HEADERS]},
         ).execute()
     else:
-        # Auto-upgrade existing trackers created before HubSpot URL column existed.
-        # Only overwrite row 1 when it exactly matches the previous header set.
+        # Auto-upgrade existing trackers created before new columns existed or that
+        # ended up partially upgraded (misaligned columns).
         try:
-            row1 = [str(x) for x in (existing[0] or [])]
-            if row1 == OLD_HEADERS_V1 or row1 == OLD_HEADERS_V2:
+            row1 = list(existing[0] or [])
+            if _should_upgrade_headers(row1) or [str(x) for x in row1] in (
+                OLD_HEADERS_V1,
+                OLD_HEADERS_V2,
+                OLD_HEADERS_V3,
+            ):
                 service.spreadsheets().values().update(
                     spreadsheetId=settings.google_sheets_spreadsheet_id,
                     range=f"{sheet}!A1",

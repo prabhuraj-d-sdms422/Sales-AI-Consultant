@@ -53,6 +53,9 @@ class ConversationState(TypedDict):
     # Set when HubSpot sync succeeds during lead delivery
     hubspot_contact_url: NotRequired[str]
 
+    # Shareable link to the human-readable conversation viewer page
+    conversation_viewer_url: NotRequired[str]
+
     # Accumulated issues discussed across the session (multi-problem support)
     problems_identified: NotRequired[list[str]]
 

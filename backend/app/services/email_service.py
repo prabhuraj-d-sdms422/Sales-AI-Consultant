@@ -48,6 +48,8 @@ def _lead_notification_bodies(state: ConversationState) -> tuple[str, str]:
     def esc(s: object) -> str:
         return html.escape(str(s) if s is not None else "")
 
+    conversation_viewer_url = str(state.get("conversation_viewer_url") or "")
+
     lines = [
         ("Session ID", session_id),
         ("Saved (UTC)", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")),
@@ -71,11 +73,31 @@ def _lead_notification_bodies(state: ConversationState) -> tuple[str, str]:
         ("Objections raised", ", ".join(state.get("objections_raised", []) or [])),
         ("HubSpot", state.get("hubspot_contact_url", "") or ""),
     ]
-    plain = "\n".join(f"{k}: {v}" for k, v in lines)
+
+    plain_conv_line = (
+        f"\nConversation transcript: {conversation_viewer_url}" if conversation_viewer_url else ""
+    )
+    plain = "\n".join(f"{k}: {v}" for k, v in lines) + plain_conv_line
+
     rows = "".join(f"<tr><th align='left'>{esc(k)}</th><td>{esc(v)}</td></tr>" for k, v in lines)
+
+    conv_button = ""
+    if conversation_viewer_url:
+        conv_button = (
+            f"<div style='margin:24px 0;text-align:center;'>"
+            f"<a href='{esc(conversation_viewer_url)}' target='_blank' "
+            f"style='display:inline-block;background:#1e3a5f;color:#ffffff;"
+            f"text-decoration:none;padding:12px 28px;border-radius:8px;"
+            f"font-family:sans-serif;font-size:14px;font-weight:600;"
+            f"letter-spacing:0.3px;'>"
+            f"&#128172; View Full Conversation</a>"
+            f"</div>"
+        )
+
     html_body = (
-        f"<h2>New lead — {esc(settings.company_name)}</h2>"
+        f"<h2>New lead &mdash; {esc(settings.company_name)}</h2>"
         f"<p>A new row was added to <code>data/leads.xlsx</code>.</p>"
+        f"{conv_button}"
         f"<table border='1' cellpadding='6' cellspacing='0'>{rows}</table>"
     )
     return plain, html_body

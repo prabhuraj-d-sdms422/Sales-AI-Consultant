@@ -59,6 +59,8 @@ def _build_note_html(state: ConversationState) -> str:
         esc_val = html.escape(str(value or ""))
         parts.append(f"<p><strong>{esc_label}</strong><br/>{esc_val}</p>")
 
+    conversation_viewer_url = str(state.get("conversation_viewer_url") or "")
+
     _p("Session ID", session_id)
     if location:
         _p("Location", location)
@@ -82,6 +84,13 @@ def _build_note_html(state: ConversationState) -> str:
         items = "".join(f"<li>{html.escape(str(x))}</li>" for x in key_metrics if str(x).strip())
         if items:
             parts.append(f"<p><strong>Key metrics / facts</strong></p><ul>{items}</ul>")
+
+    if conversation_viewer_url:
+        esc_url = html.escape(conversation_viewer_url)
+        parts.append(
+            f"<p><strong>Full conversation transcript</strong><br/>"
+            f"<a href='{esc_url}' target='_blank'>{esc_url}</a></p>"
+        )
 
     return "\n".join(parts)
 

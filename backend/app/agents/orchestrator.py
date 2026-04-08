@@ -16,6 +16,10 @@ from app.services.token_cost_service import (
 )
 from app.utils.intent_classes import IntentClass  # noqa: F401 (kept for conversion agent imports)
 
+# Fields that come exclusively from the intake form and must never be
+# extracted or overwritten from conversation messages.
+_FORM_ONLY_FIELDS = frozenset({"name", "email", "phone", "location"})
+
 
 def _parse_orchestrator_response(content: str) -> dict:
     try:
@@ -45,48 +49,11 @@ Client message: "{message}"
 Classify this message and determine routing. Return JSON only."""
 
 
-def _human_message_texts(msgs: list) -> list[str]:
-    out: list[str] = []
-    for m in msgs or []:
-        t = getattr(m, "type", None)
-        if t not in ("human", "user"):
-            continue
-        c = getattr(m, "content", "")
-        if isinstance(c, list):
-            c = "".join(str(x) for x in c)
-        out.append(str(c))
-    return out
-
-
-def _email_from_recent_human_messages(messages: list) -> str | None:
-    """If the latest user message lacks an @, re-scan recent user turns for email."""
-    for txt in reversed(_human_message_texts(messages)[-15:]):
-        e = _first_email_in_text(txt)
-        if e:
-            return e
-        em = re.search(
-            r"(?im)\b(?:email|e-mail)\s*:\s*([^\s|]+@[^\s|]+\.[a-zA-Z]{2,})",
-            txt,
-        )
-        if em:
-            return em.group(1).strip()
-    return None
-
-
 def _sanitize_next_agent(agent: str) -> str:
     allowed = {"discovery", "solution_advisor", "objection_handler", "conversion", "case_study"}
     if agent not in allowed:
         return "discovery"
     return agent
-
-
-def _first_email_in_text(text: str) -> str | None:
-    """Return first plausible email-like token in text."""
-    m = re.search(
-        r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b",
-        text or "",
-    )
-    return m.group(0) if m else None
 
 
 def _trim_labeled_value(val: str) -> str:
@@ -110,49 +77,18 @@ def _trim_labeled_value(val: str) -> str:
             lower = v.lower()
     return v.rstrip(".,|")
 
+
 def _extract_profile_fields(text: str) -> dict:
     """Lightweight backup extraction when the classifier JSON omits profile_updates.
 
-    Does not replace orchestrator JSON — merge logic fills only gaps (see orchestrator_node).
+    Only extracts business-context fields (company, industry, problem, budget,
+    urgency, decision_maker). name / email / phone / location are collected via
+    the intake form at session start and must NEVER be extracted or overwritten
+    from conversation messages.
     """
     out: dict = {}
     t = (text or "").strip()
-
-    # Email: any address in text, or explicit "Email: x@y.z"
-    email = _first_email_in_text(t)
-    if not email:
-        em = re.search(
-            r"(?im)\b(?:email|e-mail)\s*:\s*([^\s|]+@[^\s|]+\.[a-zA-Z]{2,})",
-            t,
-        )
-        if em:
-            email = em.group(1).strip()
-    if email:
-        out["email"] = email
-
-    # Loose phone capture (India-friendly): optional +, 10-15 digits with spaces/dashes.
-    phone_m = re.search(r"(?:(?:\+?\d{1,3})[\s-]?)?(?:\d[\s-]?){9,14}\d", t)
-    if phone_m:
-        out["phone"] = re.sub(r"[^\d+]", "", phone_m.group(0))
-
-    tl = t  # use for case-insensitive name/company patterns
-
-    # Name: I'm / I am / My name is / Name: / call me
-    name_m = re.search(
-        r"\b(?:i['’]m|i am)\s+([A-Za-z][A-Za-z\s.'-]{1,80}?)(?=\s*[,.|]|\s+from\b|\s+at\b|\s+email\b|\s*$)",
-        tl,
-        re.I,
-    )
-    if not name_m:
-        name_m = re.search(
-            r"\b(?:my name is|name is|call me)\s+([A-Za-z][A-Za-z\s.'-]{1,80}?)(?=\s*[,.|]|\s+from\b|\s+at\b|\s+email\b|\s*$)",
-            tl,
-            re.I,
-        )
-    if not name_m:
-        name_m = re.search(r"(?im)^\s*name\s*:\s*([^\n|]+)", t)
-    if name_m:
-        out["name"] = name_m.group(1).strip().rstrip(".,|")
+    tl = t  # used for case-insensitive patterns
 
     # Company: Company: / company name / from <Org> (case-insensitive)
     comp_m = re.search(r"(?im)^\s*company\s*:\s*([^\n|]+)", t)
@@ -272,10 +208,6 @@ async def orchestrator_node(state: ConversationState) -> dict:
     if not isinstance(profile_updates, dict):
         profile_updates = {}
     extracted = _extract_profile_fields(last_message)
-    if not extracted.get("email"):
-        hist_email = _email_from_recent_human_messages(msgs)
-        if hist_email:
-            extracted["email"] = hist_email
     lead_temperature = str(result.get("lead_temperature", state.get("lead_temperature", "cold")))
 
     if confidence < settings.intent_confidence_threshold:
@@ -293,14 +225,21 @@ async def orchestrator_node(state: ConversationState) -> dict:
             return True
         return False
 
-    # Merge: base → fill gaps from extraction → LLM non-empty wins (original classifier intent).
+    # Merge strategy:
+    # 1. Start from existing base profile (includes form data).
+    # 2. Fill gaps from regex extraction (business fields only — form fields excluded).
+    # 3. Apply LLM profile_updates, but NEVER overwrite form-collected fields.
     merged_profile = dict(base_profile)
     for k, v in extracted.items():
+        if k in _FORM_ONLY_FIELDS:
+            continue
         if _is_empty(v):
             continue
         if k not in merged_profile or _is_empty(merged_profile.get(k)):
             merged_profile[k] = v
     for k, v in profile_updates.items():
+        if k in _FORM_ONLY_FIELDS:
+            continue
         if _is_empty(v):
             continue
         merged_profile[k] = v
