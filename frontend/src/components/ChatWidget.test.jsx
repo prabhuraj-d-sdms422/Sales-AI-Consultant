@@ -15,7 +15,11 @@ vi.mock("../utils/api.js", () => ({
 
 vi.mock("../hooks/useChat.js", () => ({
   useChat: () => ({
-    messages: [{ role: "assistant", content: "hello" }],
+    // Include a user message so the contact form is triggered (new trigger condition)
+    messages: [
+      { role: "assistant", content: "hello" },
+      { role: "user", content: "hi" },
+    ],
     streamingText: "",
     isTyping: false,
     tokenUsage: null,
@@ -63,7 +67,7 @@ describe("ChatWidget session behavior", () => {
     expect(sessionStorage.getItem("stark.chat.sessionId")).toBe("existing-session");
   });
 
-  it("shows required contact form (no Skip) and disables chat input until submitted", async () => {
+  it("shows required contact form after first user message with preparing-response animation, no Skip, and disables chat input", async () => {
     vi.spyOn(performance, "getEntriesByType").mockReturnValue([{ type: "navigate" }]);
 
     render(<ChatWidget />);
@@ -72,8 +76,13 @@ describe("ChatWidget session behavior", () => {
       expect(createSessionMock).toHaveBeenCalledTimes(1);
     });
 
+    // No skip button — form is mandatory
     expect(screen.queryByRole("button", { name: /skip/i })).toBeNull();
 
+    // "Preparing response" animation label is visible
+    expect(screen.getAllByText(/preparing your response/i).length).toBeGreaterThan(0);
+
+    // Chat input is disabled while form is open
     const [textarea] = screen.getAllByLabelText("Chat message");
     expect(textarea).toBeDisabled();
   });

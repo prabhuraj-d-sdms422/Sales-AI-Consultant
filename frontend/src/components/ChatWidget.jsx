@@ -225,15 +225,7 @@ export default function ChatWidget() {
     };
   }, [sessionId, ended, timings.promptMin, timings.endMin, messages.length]);
 
-  // Show contact form after first assistant response (single-step inline).
-  useEffect(() => {
-    if (!sessionId) return;
-    if (formShown) return;
-    const hasAssistant = messages.some((m) => m.role === "assistant" && (m.content || "").trim());
-    if (hasAssistant) {
-      setFormShown(false);
-    }
-  }, [sessionId, formShown, messages]);
+  // (form trigger is derived below — no effect needed)
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -287,11 +279,21 @@ export default function ChatWidget() {
     }
   };
 
+  // Show form only after the user has sent their first message.
+  // This way the greeting appears clean and the form surfaces naturally mid-conversation.
   const shouldShowContactForm =
     !!sessionId &&
     !ended &&
     !formShown &&
-    messages.some((m) => m.role === "assistant" && (m.content || "").trim());
+    messages.some((m) => m.role === "user");
+
+  // While the form is visible we hold back any AI reply that arrived during form filling.
+  // Only show messages up to (and including) the first user message so the response is
+  // revealed all at once after the form is submitted.
+  const firstUserIdx = messages.findIndex((m) => m.role === "user");
+  const visibleMessages = shouldShowContactForm && firstUserIdx >= 0
+    ? messages.slice(0, firstUserIdx + 1)
+    : messages;
 
   const contactFormComplete =
     (contactForm.name || "").trim() &&
@@ -348,19 +350,28 @@ export default function ChatWidget() {
         {!sessionId && (
           <p className="text-slate-500 text-sm">Starting session…</p>
         )}
-        {messages.map((m, i) => (
+        {visibleMessages.map((m, i) => (
           <MessageBubble key={i} role={m.role}>
             {m.content}
           </MessageBubble>
         ))}
-        {isTyping && streamingText && (
-          <MessageBubble role="assistant">{streamingText}</MessageBubble>
+
+        {/* While the contact form is visible: show a "preparing response" animation
+            so the user knows a reply is being assembled. The actual response is held
+            back and revealed in full right after the form is submitted. */}
+        {shouldShowContactForm && (
+          <MessageBubble role="assistant">
+            <div className="flex items-center gap-2.5">
+              <TypingIndicator />
+              <span className="text-xs text-slate-500 italic">Preparing your response…</span>
+            </div>
+          </MessageBubble>
         )}
 
         {shouldShowContactForm && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <div className="text-sm text-slate-200 font-medium">
-              While we chat, mind sharing your details so we can follow up personally?
+              While we get your response ready, mind sharing your details so we can follow up personally?
             </div>
             <div className="mt-3 grid grid-cols-1 gap-2">
               <input
@@ -393,12 +404,17 @@ export default function ChatWidget() {
                 type="button"
                 onClick={submitContactForm}
                 disabled={!contactFormComplete}
-                className="rounded-xl bg-stark-blue hover:bg-blue-600 text-white px-4 py-2 text-sm font-medium"
+                className="rounded-xl bg-stark-blue hover:bg-blue-600 disabled:opacity-40 text-white px-4 py-2 text-sm font-medium"
               >
                 Submit
               </button>
             </div>
           </div>
+        )}
+
+        {/* Normal streaming — only when the contact form is not blocking the view */}
+        {!shouldShowContactForm && isTyping && streamingText && (
+          <MessageBubble role="assistant">{streamingText}</MessageBubble>
         )}
 
         {showIdlePrompt && !ended && (
@@ -457,7 +473,7 @@ export default function ChatWidget() {
             </details>
           </div>
         ) : null}
-        {isTyping && !streamingText && (
+        {!shouldShowContactForm && isTyping && !streamingText && (
           <MessageBubble role="assistant">
             <TypingIndicator />
           </MessageBubble>
