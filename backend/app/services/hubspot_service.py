@@ -65,6 +65,12 @@ def _build_note_html(state: ConversationState) -> str:
     if location:
         _p("Location", location)
     _p("Problem / context", str(problem))
+    budget_signal = str(profile.get("budget_signal") or "").strip()
+    if budget_signal:
+        _p("Budget signal", budget_signal)
+    urgency = str(profile.get("urgency") or "").strip()
+    if urgency:
+        _p("Urgency / timeline", urgency)
     _p("Solutions discussed", solutions)
 
     if client_context.strip():
