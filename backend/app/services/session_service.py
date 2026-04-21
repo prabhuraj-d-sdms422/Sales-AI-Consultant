@@ -80,6 +80,10 @@ async def create_session() -> str:
         # Rolling summary / memory (optional)
         "conversation_summary": "",
         "summary_turns_since_update": 0,
+        # Website research (optional)
+        "website_research": None,
+        "website_sources": [],
+        "website_last_fetched_at": "",
     }
     await save_state(session_id, initial_state)
     return session_id

@@ -13,6 +13,7 @@ from app.services.token_cost_service import (
     extract_token_usage_from_message,
     get_active_provider_and_model,
 )
+from app.utils.llm_output import extract_text
 
 
 def _content(msg) -> str:
@@ -61,9 +62,7 @@ async def objection_handler_node(state: ConversationState) -> dict:
         provider=provider,
         model=model,
     )
-    response_text = response.content or ""
-    if isinstance(response_text, list):
-        response_text = "".join(str(x) for x in response_text)
+    response_text = extract_text(getattr(response, "content", response))
 
     updated_objections = objections_raised + [last_message[:80]]
     await persist_lead_incrementally(state["session_id"], profile, state)

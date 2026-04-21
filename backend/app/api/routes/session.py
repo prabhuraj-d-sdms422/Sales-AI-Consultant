@@ -30,6 +30,8 @@ async def get_session_config():
     return SessionConfigResponse(
         inactivity_prompt_minutes=int(settings.inactivity_prompt_minutes),
         inactivity_end_minutes=int(settings.inactivity_end_minutes),
+        consultant_name=str(settings.consultant_name),
+        company_name=str(settings.company_name),
     )
 
 

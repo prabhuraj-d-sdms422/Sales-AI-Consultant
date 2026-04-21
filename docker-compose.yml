@@ -15,7 +15,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "8000:6003"
     env_file: .env
     environment:
       REDIS_HOST: redis

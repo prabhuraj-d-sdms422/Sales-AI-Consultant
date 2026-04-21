@@ -26,8 +26,40 @@ from app.services.token_cost_service import (
     extract_token_usage_from_message,
     get_active_provider_and_model,
 )
+from app.utils.llm_output import extract_text
 
 logger = logging.getLogger(__name__)
+
+
+def _looks_underspecified_build_intent(text: str) -> bool:
+    """
+    Narrow guard: catch very vague build intent so we clarify instead of guessing.
+    This should only trigger when the user has not provided any concrete problem/deliverable.
+    """
+    t = (text or "").strip().lower()
+    if not t:
+        return True
+    # If they wrote a longer message, assume there's enough signal.
+    if len(t) >= 80:
+        return False
+    vague_phrases = (
+        "i want to build",
+        "we want to build",
+        "i need to build",
+        "we need to build",
+        "i want to make",
+        "we want to make",
+        "i want to create",
+        "we want to create",
+        "i want to develop",
+        "we want to develop",
+        "i need an ai",
+        "we need an ai",
+        "ai solution",
+        "something for my business",
+        "something for our business",
+    )
+    return any(p in t for p in vague_phrases)
 
 
 def _content(msg) -> str:
@@ -69,6 +101,8 @@ async def solution_advisor_node(state: ConversationState) -> dict:
     profile           = dict(state.get("client_profile") or {})
     solutions_discussed = list(state.get("solutions_discussed") or [])
     tone_block        = get_tone_calibration(profile)
+    website_research = state.get("website_research") or None
+    website_sources = list(state.get("website_sources") or [])
 
     # ── RAG context lookup ─────────────────────────────────────────────────────
     rag_context: str | None = None
@@ -124,6 +158,42 @@ async def solution_advisor_node(state: ConversationState) -> dict:
             consultant_name=settings.consultant_name,
             company_name=settings.company_name,
         )
+
+    if isinstance(website_research, dict) and website_research.get("pages"):
+        # Ground recommendations in the user's public website content.
+        pages = website_research.get("pages") or []
+        ctx_parts: list[str] = []
+        for p in pages[: settings.website_research_max_pages]:
+            url = str(p.get("url") or "")
+            title = str(p.get("title") or "")
+            snippet = str(p.get("text_snippet") or "")
+            if not url or not snippet:
+                continue
+            ctx_parts.append(f"URL: {url}\nTitle: {title or 'n/a'}\n{snippet}")
+        website_context = "\n\n---\n\n".join(ctx_parts).strip()
+        if website_context:
+            system_prompt = (
+                system_prompt
+                + "\n\n"
+                + "## WEBSITE CONTEXT (public pages provided by the client):\n"
+                + website_context
+            )
+
+    # Safety net: if routing sends an underspecified ask here, force clarification.
+    msgs = state.get("messages") or []
+    last = msgs[-1] if msgs else None
+    last_text = _content(last) if last is not None else ""
+    has_problem_signal = bool(profile.get("problem_raw") or profile.get("problem_understood")) or bool(
+        state.get("problems_identified")
+    )
+    if (not has_problem_signal) and _looks_underspecified_build_intent(last_text):
+        system_prompt = (
+            system_prompt
+            + "\n\n"
+            + "CLARIFICATION MODE (CRITICAL): The client's ask is underspecified. "
+            + "Ask 1–2 short clarifying questions to understand what they want to build or what problem they're solving. "
+            + "Do NOT assume the solution type. Do NOT propose a specific product yet."
+        )
     memory_block = format_memory_block_for_prompt(state)
     if memory_block:
         system_prompt = system_prompt + "\n\n" + memory_block
@@ -140,19 +210,21 @@ async def solution_advisor_node(state: ConversationState) -> dict:
         provider=provider,
         model=model,
     )
-    response_text = response.content or ""
-    if isinstance(response_text, list):
-        response_text = "".join(str(x) for x in response_text)
+    response_text = extract_text(getattr(response, "content", response))
 
     updated_solutions = solutions_discussed + [response_text[:50]]
     await persist_lead_incrementally(state["session_id"], profile, state)
+    website_sources_payload = [
+        {"id": url, "problem_title": "Website page", "namespace": "website", "score": 1.0}
+        for url in website_sources
+    ]
     return {
         "current_response":    response_text,
         "solutions_discussed": updated_solutions,
         "current_agent":       "solution_advisor",
         "conversation_stage":  "PROPOSAL",
         "should_stream":       True,
-        "last_answer_sources": rag_sources,
+        "last_answer_sources": (list(rag_sources) if isinstance(rag_sources, list) else []) + website_sources_payload,
         "session_token_usage": session_token_usage,
         "last_call_token_usage": {"provider": provider, "model": model, **usage},
     }

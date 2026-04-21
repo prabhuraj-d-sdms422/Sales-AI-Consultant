@@ -69,3 +69,8 @@ class ConversationState(TypedDict):
     # Rolling summary / memory (optional; additive)
     conversation_summary: NotRequired[str]
     summary_turns_since_update: NotRequired[int]
+
+    # Website research (optional; additive)
+    website_research: NotRequired[dict[str, Any]]
+    website_sources: NotRequired[list[str]]
+    website_last_fetched_at: NotRequired[str]

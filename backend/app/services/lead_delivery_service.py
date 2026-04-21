@@ -5,7 +5,7 @@ from pathlib import Path
 from app.config.settings import settings
 from app.db.redis_client import get_redis
 from app.models.state import ConversationState
-from app.services.conversation_archive_service import save_session_conversation
+from app.services.conversation_archive_service import render_transcript_txt, save_session_conversation
 from app.services.email_service import notify_sales_lead_captured, save_lead_locally
 from app.services.hubspot_service import sync_lead_to_hubspot_safe
 from app.services.lead_enrichment_service import enrich_lead_from_conversation_safe
@@ -83,6 +83,17 @@ async def trigger_lead_delivery(state: ConversationState) -> ConversationState:
                     messages,
                     token_usage=delivery_state.get("session_token_usage"),
                 )
+        # Also ensure a plaintext transcript exists (best-effort).
+        txt_file = CONVERSATIONS_DIR / f"{session_id}.txt"
+        if not txt_file.exists():
+            profile = dict(delivery_state.get("client_profile") or {})
+            client_name = str(profile.get("name") or "").strip() or "Client"
+            transcript = render_transcript_txt(
+                messages=delivery_state.get("messages") or [],
+                consultant_name=str(settings.consultant_name),
+                client_name=client_name,
+            )
+            txt_file.write_text(transcript, encoding="utf-8")
     except Exception as e:
         logger.warning("Could not save conversation archive for viewer | session=%s | err=%s", session_id, e)
 

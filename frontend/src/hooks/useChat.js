@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createSession, getApiBase } from "../utils/api.js";
+import { createSession, getApiBase, getSessionConfig } from "../utils/api.js";
 
 const CHAT_MESSAGES_KEY = "stark.chat.messages";
 const CHAT_SESSION_ID_KEY = "stark.chat.sessionId";
-const DEFAULT_GREETING = "Hi — I’m Stark Digital’s AI Sales Consultant. How can I help today?";
+const CHAT_GREETING_KEY = "stark.chat.greeting";
+
+function buildGreeting(config) {
+  const consultant = (config?.consultant_name || "Stark Digital’s AI Sales Consultant").trim();
+  const company = (config?.company_name || "Stark Digital").trim();
+  // Option A, env-configurable
+  return `Hi — I’m ${consultant}, ${company}’s AI Sales Consultant. How can I help today?`;
+}
 
 export function useChat(sessionId, setSessionId) {
   const [messages, setMessages] = useState([]);
@@ -21,7 +28,22 @@ export function useChat(sessionId, setSessionId) {
     try {
       const raw = window.sessionStorage.getItem(CHAT_MESSAGES_KEY);
       if (!raw) {
-        setMessages([{ role: "assistant", content: DEFAULT_GREETING }]);
+        // No messages yet: load greeting from backend config (env-driven).
+        (async () => {
+          try {
+            const cfg = await getSessionConfig();
+            const greeting = buildGreeting(cfg);
+            try {
+              window.sessionStorage.setItem(CHAT_GREETING_KEY, greeting);
+            } catch {
+              // ignore storage failures
+            }
+            setMessages([{ role: "assistant", content: greeting }]);
+          } catch {
+            const fallback = "Hi — I’m Stark Digital’s AI Sales Consultant. How can I help today?";
+            setMessages([{ role: "assistant", content: fallback }]);
+          }
+        })();
         return;
       }
       const parsed = JSON.parse(raw);
@@ -29,7 +51,8 @@ export function useChat(sessionId, setSessionId) {
       setMessages(parsed);
     } catch {
       // If storage is unreadable (corrupt/quota), fall back to a clean greeting.
-      setMessages([{ role: "assistant", content: DEFAULT_GREETING }]);
+      const fallback = "Hi — I’m Stark Digital’s AI Sales Consultant. How can I help today?";
+      setMessages([{ role: "assistant", content: fallback }]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);

@@ -466,6 +466,7 @@ export default function ChatWidget() {
                     <div className="text-slate-500">
                       {(s.namespace ? `${s.namespace} • ` : "")}
                       {(typeof s.score === "number" ? `score ${s.score.toFixed(2)}` : "")}
+                      {s.namespace === "website" && s.id ? ` • ${s.id}` : ""}
                     </div>
                   </div>
                 ))}

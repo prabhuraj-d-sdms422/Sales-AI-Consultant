@@ -11,6 +11,7 @@ import httpx
 
 from app.config.settings import settings
 from app.models.state import ConversationState
+from app.services.conversation_archive_service import render_transcript_txt
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,31 @@ def _build_note_html(state: ConversationState) -> str:
             f"<p><strong>Full conversation transcript</strong><br/>"
             f"<a href='{esc_url}' target='_blank'>{esc_url}</a></p>"
         )
+
+    # Inline plaintext transcript (collapsed) so sales can read it inside HubSpot.
+    # Cap to avoid oversized notes.
+    try:
+        client_name = (profile.get("name") or "").strip() or "Client"
+        transcript_txt = render_transcript_txt(
+            messages=state.get("messages") or [],
+            consultant_name=str(settings.consultant_name),
+            client_name=client_name,
+        )
+        max_chars = 8000
+        trimmed = transcript_txt[:max_chars].rstrip()
+        if len(transcript_txt) > max_chars:
+            trimmed += "\n\n[Transcript truncated — use the transcript link above for full conversation]\n"
+        esc_transcript = html.escape(trimmed)
+        parts.append(
+            "<details>"
+            "<summary><strong>Transcript (plaintext)</strong></summary>"
+            f"<pre style='white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace;'>"
+            f"{esc_transcript}"
+            "</pre>"
+            "</details>"
+        )
+    except Exception:
+        pass
 
     return "\n".join(parts)
 
@@ -260,8 +286,6 @@ async def sync_lead_to_hubspot(state: ConversationState) -> str | None:
     if location:
         properties["city"] = location
 
-    note_html = _build_note_html(state)
-
     async with httpx.AsyncClient(timeout=30.0) as client:
         contact_id: str | None = None
         if email:
@@ -271,6 +295,7 @@ async def sync_lead_to_hubspot(state: ConversationState) -> str | None:
         if not cid:
             return None
 
+        note_html = _build_note_html(state)
         await _create_note_for_contact(client, cid, note_html)
 
         return _contact_record_url(cid)

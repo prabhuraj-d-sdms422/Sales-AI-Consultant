@@ -4,6 +4,7 @@ import { useChat } from "./useChat.js";
 
 vi.mock("../utils/api.js", () => ({
   getApiBase: () => "http://example.test",
+  getSessionConfig: async () => ({ consultant_name: "Jarvis", company_name: "Stark Digital" }),
 }));
 
 function mockFetchDoneOk() {
@@ -44,12 +45,16 @@ describe("useChat sessionStorage persistence", () => {
 
     const { result } = renderHook(() => useChat("session-1"));
 
+    await waitFor(() => {
+      expect(result.current.messages[0]?.role).toBe("assistant");
+    });
+
     await result.current.sendMessage("Hi");
 
     await waitFor(() => {
       const stored = JSON.parse(sessionStorage.getItem("stark.chat.messages") || "null");
       expect(stored).toEqual([
-        { role: "assistant", content: "Hi — I’m Stark Digital’s AI Sales Consultant. How can I help today?" },
+        { role: "assistant", content: "Hi — I’m Jarvis, Stark Digital’s AI Sales Consultant. How can I help today?" },
         { role: "user", content: "Hi" },
         { role: "assistant", content: "" },
       ]);

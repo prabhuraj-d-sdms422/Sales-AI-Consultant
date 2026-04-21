@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     consultant_name: str = "Alex"
     company_name: str = "Stark Digital"
     sales_phone_number: str = ""
+    # HR contact (for job/HR queries)
+    hr_email: str = "hr@starkdigital.net"
+    hr_phone_number: str = ""
     session_timeout_minutes: int = 30
     save_conversations_enabled: bool = False
 
@@ -110,6 +113,13 @@ class Settings(BaseSettings):
     # 0.55 filters irrelevant results while capturing spot-on domain matches.
     rag_similarity_threshold: float = 0.55
     rag_top_k: int = 3
+
+    # Website research (public pages only)
+    website_research_enabled: bool = True
+    website_research_max_pages: int = 6
+    website_research_timeout_seconds: float = 15.0
+    website_research_max_bytes_per_page: int = 600_000
+    website_research_max_chars_per_page: int = 6000
 
     @field_validator("cors_origins", mode="before")
     @classmethod

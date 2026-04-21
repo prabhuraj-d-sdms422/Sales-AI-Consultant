@@ -38,3 +38,5 @@ class SessionResponse(BaseModel):
 class SessionConfigResponse(BaseModel):
     inactivity_prompt_minutes: int
     inactivity_end_minutes: int
+    consultant_name: str
+    company_name: str

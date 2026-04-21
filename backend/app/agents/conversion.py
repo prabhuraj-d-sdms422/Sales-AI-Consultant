@@ -15,6 +15,7 @@ from app.services.token_cost_service import (
     extract_token_usage_from_message,
     get_active_provider_and_model,
 )
+from app.utils.llm_output import extract_text
 
 
 def _content(msg) -> str:
@@ -113,9 +114,7 @@ async def conversion_node(state: ConversationState) -> dict:
         response = await llm.ainvoke(messages)
         provider, model = get_active_provider_and_model()
         usage = extract_token_usage_from_message(response)
-        response_text = response.content or ""
-        if isinstance(response_text, list):
-            response_text = "".join(str(x) for x in response_text)
+        response_text = extract_text(getattr(response, "content", response))
     session_token_usage = add_usage_totals(
         current=state.get("session_token_usage"),
         add_input_tokens=usage["input_tokens"],

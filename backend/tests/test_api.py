@@ -21,3 +21,14 @@ async def test_create_session():
         assert response.status_code == 200
         data = response.json()
         assert "session_id" in data
+
+
+@pytest.mark.asyncio
+async def test_session_config_includes_names():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/session/config")
+        assert response.status_code == 200
+        data = response.json()
+        assert "consultant_name" in data
+        assert "company_name" in data

@@ -26,6 +26,29 @@ def _to_message_record(message: Any) -> dict:
     return {"type": "unknown", "content": str(message), "raw": {"value": str(message)}}
 
 
+def render_transcript_txt(*, messages: list[Any], consultant_name: str, client_name: str | None = None) -> str:
+    """
+    Render a readable plaintext transcript.
+    Format is stable so it can be pasted into HubSpot notes or saved as a .txt file.
+    """
+    client = (client_name or "").strip() or "Client"
+    consultant = (consultant_name or "").strip() or "AI Consultant"
+    lines: list[str] = []
+    lines.append(f"AI Consultant ({consultant})")
+    lines.append("")
+    for m in messages or []:
+        rec = _to_message_record(m)
+        t = (rec.get("type") or "").lower()
+        content = str(rec.get("content") or "").strip()
+        if not content:
+            continue
+        speaker = client if t == "human" else consultant if t == "ai" else "Other"
+        lines.append(f"{speaker}: {content}")
+        lines.append("")
+    lines.append(f"Client name: {client}")
+    return "\n".join(lines).strip() + "\n"
+
+
 async def save_session_conversation(
     session_id: str,
     messages: list[Any],
@@ -47,6 +70,24 @@ async def save_session_conversation(
 
     target_file = conversations_dir / f"{session_id}.json"
     target_file.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
+
+    # Also write a plaintext transcript alongside the JSON for easy sharing.
+    try:
+        # Prefer form-collected name if present; safe fallback to "Client".
+        client_name = ""
+        try:
+            # messages don't include profile; caller can regenerate if needed.
+            client_name = ""
+        except Exception:
+            client_name = ""
+        txt = render_transcript_txt(
+            messages=messages,
+            consultant_name=str(settings.consultant_name),
+            client_name=client_name or None,
+        )
+        (conversations_dir / f"{session_id}.txt").write_text(txt, encoding="utf-8")
+    except Exception as e:
+        logger.warning("Could not write transcript txt | session=%s | err=%s", session_id, e)
     logger.info(
         "CONVERSATION SAVED | session=%s | messages=%d | file=%s",
         session_id,
