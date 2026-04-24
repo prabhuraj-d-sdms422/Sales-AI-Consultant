@@ -22,10 +22,55 @@ _CURRENCY_PATTERNS = [
     re.compile(r"\b\d+\s*(lakh|lac|crore|crores)\b", re.I),
 ]
 
+# If the assistant introduces pricing/fee language alongside numbers, treat as internal pricing disclosure
+# (block even if the user mentioned a budget).
+_PRICING_INTENT_RE = re.compile(
+    r"\b(our|we)\s+(price|pricing|fee|fees|rate|rates|cost|costs|charge|charges)\b"
+    r"|\b(pricing|price|fee|fees|retainer)\s+(is|would\s+be|starts?\s+at)\b"
+    r"|\bwe\s+(charge|cost)\b",
+    re.I,
+)
+
 SAFE_FALLBACK = (
     "I'd be happy to walk you through how we approach this at Stark Digital — "
     "without going into figures here. What matters most for your situation right now?"
 )
+
+
+def _extract_currency_matches(text: str) -> list[str]:
+    matches: list[str] = []
+    for pat in _CURRENCY_PATTERNS:
+        for m in pat.finditer(text or ""):
+            v = (m.group(0) or "").strip()
+            if v:
+                matches.append(v)
+    return matches
+
+
+def _currency_matches_are_user_provided(state: ConversationState, matches: list[str]) -> bool:
+    """
+    Allow budgets/currency figures ONLY when they appear in user messages.
+    This lets the assistant acknowledge a client-provided budget without introducing its own numbers.
+    """
+    if not matches:
+        return True
+    msgs = state.get("messages") or []
+    human_texts: list[str] = []
+    for m in msgs:
+        if isinstance(m, dict):
+            # Support multiple shapes: {"type": "human", "data": {"content": ...}} or {"role": "user", "content": ...}
+            t = str(m.get("type") or "").lower()
+            role = str(m.get("role") or "").lower()
+            if t == "human" or role in {"user", "human"}:
+                content = m.get("data", {}).get("content", m.get("content", ""))
+                human_texts.append(str(content or ""))
+        else:
+            # LangChain messages (HumanMessage/AIMessage)
+            t = str(getattr(m, "type", "") or "").lower()
+            if t == "human":
+                human_texts.append(str(getattr(m, "content", "") or ""))
+    haystack = "\n".join(human_texts)
+    return all(match in haystack for match in matches)
 
 
 def _rewrite_capability_claim_tense(text: str) -> tuple[str, dict | None]:
@@ -187,8 +232,26 @@ async def output_guardrail_node(state: ConversationState) -> dict:
         return {"output_guardrail_passed": True}
 
     # --- 1. Currency / price check ---
-    for pat in _CURRENCY_PATTERNS:
-        if pat.search(response):
+    currency_matches = _extract_currency_matches(response)
+    if currency_matches:
+        # If the assistant is explicitly talking about OUR pricing/fees with numbers, block.
+        if _PRICING_INTENT_RE.search(response):
+            flag = {
+                "type": "output",
+                "rule": "price_or_currency",
+                "action": "substitute",
+                "content": response[:200],
+            }
+            _log_guardrail(state["session_id"], flag)
+            logger.warning("Output blocked [price_or_currency] session=%s", state["session_id"])
+            return {
+                "output_guardrail_passed": False,
+                "current_response": SAFE_FALLBACK,
+                "guardrail_flags": state.get("guardrail_flags", []) + [flag],
+            }
+
+        # Otherwise, allow numbers ONLY if they were already provided by the user.
+        if not _currency_matches_are_user_provided(state, currency_matches):
             flag = {
                 "type": "output",
                 "rule": "price_or_currency",

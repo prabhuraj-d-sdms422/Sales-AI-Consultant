@@ -138,6 +138,18 @@ def _make_output_state(response: str) -> dict:
     }
 
 
+def _make_output_state_with_user_budget(*, user_text: str, assistant_text: str) -> dict:
+    # Match the serialized message shape used in session state in this project.
+    return {
+        "session_id": "test-session",
+        "current_response": assistant_text,
+        "guardrail_flags": [],
+        "messages": [
+            {"type": "human", "data": {"content": user_text}},
+        ],
+    }
+
+
 @pytest.mark.asyncio
 async def test_output_guardrail_passes_clean_response():
     with patch("app.guardrails.output_guardrail._competitor_validator") as mock_cv:
@@ -169,6 +181,39 @@ async def test_output_guardrail_blocks_currency_usd():
 async def test_output_guardrail_blocks_lakh():
     from app.guardrails.output_guardrail import output_guardrail_node
     result = await output_guardrail_node(_make_output_state("Budget around 5 lakh."))
+    assert result["output_guardrail_passed"] is False
+    assert any(f["rule"] == "price_or_currency" for f in result["guardrail_flags"])
+
+
+@pytest.mark.asyncio
+async def test_output_guardrail_allows_acknowledging_user_provided_budget():
+    with patch("app.guardrails.output_guardrail._competitor_validator") as mock_cv:
+        mock_cv.return_value = None
+
+        from app.guardrails.output_guardrail import output_guardrail_node
+
+        result = await output_guardrail_node(
+            _make_output_state_with_user_budget(
+                user_text="My budget is 2 lakh and timeline is 3 weeks.",
+                assistant_text="Got it — you mentioned a budget of 2 lakh and a 3-week timeline. We can scope accordingly.",
+            )
+        )
+    assert result["output_guardrail_passed"] is True
+
+
+@pytest.mark.asyncio
+async def test_output_guardrail_blocks_assistant_pricing_language_even_if_user_mentions_budget():
+    with patch("app.guardrails.output_guardrail._competitor_validator") as mock_cv:
+        mock_cv.return_value = None
+
+        from app.guardrails.output_guardrail import output_guardrail_node
+
+        result = await output_guardrail_node(
+            _make_output_state_with_user_budget(
+                user_text="My budget is 2 lakh.",
+                assistant_text="Our pricing is 2 lakh for this scope.",
+            )
+        )
     assert result["output_guardrail_passed"] is False
     assert any(f["rule"] == "price_or_currency" for f in result["guardrail_flags"])
 

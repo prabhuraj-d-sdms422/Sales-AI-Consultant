@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from app.config.settings import settings
 
-Provider = Literal["anthropic", "openai", "gemini"]
+Provider = Literal["anthropic", "openai", "gemini", "openrouter"]
 
 
 @dataclass(frozen=True)
@@ -31,6 +31,9 @@ PRICING_USD_PER_1K: dict[Provider, dict[str, ModelPricing]] = {
         # Legacy / fallback
         "gemini-1.5-pro": ModelPricing(0.00125, 0.005),
     },
+    # OpenRouter pricing varies by upstream model/provider; we default to unknown (0.0).
+    # If you want accurate cost estimates, add specific models here.
+    "openrouter": {},
 }
 
 
@@ -40,6 +43,8 @@ def get_active_provider_and_model() -> tuple[Provider, str]:
         return provider, settings.anthropic_model
     if provider == "openai":
         return provider, settings.openai_model
+    if provider == "openrouter":
+        return provider, settings.openrouter_model
     return provider, settings.gemini_model
 
 

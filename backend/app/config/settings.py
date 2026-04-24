@@ -22,13 +22,21 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
 
     # LLM
-    llm_provider: Literal["anthropic", "openai", "gemini"] = "anthropic"
+    llm_provider: Literal["anthropic", "openai", "gemini", "openrouter"] = "anthropic"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-3-5-sonnet-20241022"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
+    # OpenRouter (OpenAI-compatible API)
+    openrouter_api_key: str = ""
+    openrouter_model: str = "openai/gpt-4o-mini"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    # Optional headers OpenRouter recommends for attribution/analytics.
+    # Safe to leave empty.
+    openrouter_referer: str = ""
+    openrouter_app_name: str = ""
     llm_temperature: float = 0.3
     # Max *generated* tokens per model call. Too low → replies stop mid-sentence/word.
     # Override with LLM_MAX_TOKENS in .env (e.g. 4096 for long solution-advisor turns).

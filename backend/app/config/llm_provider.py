@@ -33,6 +33,23 @@ def get_llm(streaming: bool = False, temperature: float | None = None) -> BaseCh
             max_output_tokens=settings.llm_max_tokens,
             streaming=streaming,
         )
+    if settings.llm_provider == "openrouter":
+        headers: dict[str, str] = {}
+        referer = (settings.openrouter_referer or "").strip()
+        app_name = (settings.openrouter_app_name or "").strip()
+        if referer:
+            headers["HTTP-Referer"] = referer
+        if app_name:
+            headers["X-Title"] = app_name
+        return ChatOpenAI(
+            model=settings.openrouter_model,
+            api_key=settings.openrouter_api_key,
+            base_url=settings.openrouter_base_url,
+            temperature=temp,
+            max_tokens=settings.llm_max_tokens,
+            streaming=streaming,
+            default_headers=headers or None,
+        )
     raise ValueError(f"Unsupported LLM provider: {settings.llm_provider}")
 
 
