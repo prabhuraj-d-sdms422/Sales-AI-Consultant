@@ -211,10 +211,13 @@ def _competitor_validator():
     Loaded once from settings.  Returns None when the blocklist is empty
     so we skip validation gracefully.
     """
-    from guardrails.hub import CompetitorCheck
-
     names = [x.strip() for x in (settings.competitor_names_blocklist or "").split(",") if x.strip()]
     if not names:
+        return None
+    try:
+        from guardrails.hub import CompetitorCheck
+    except Exception:
+        logger.exception("CompetitorCheck import failed; skipping competitor guardrail")
         return None
     return CompetitorCheck(competitors=names)
 
